@@ -1,0 +1,31 @@
+services:
+  # Backend API
+  - type: web
+    name: campeon-crm-api
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 8000"
+    plan: free
+    regions:
+      - iad
+    envVars:
+      - key: DATABASE_URL
+        scope: run
+        value: ${DATABASE_URL}
+      - key: PYTHON_VERSION
+        value: 3.11
+
+  # Frontend
+  - type: web
+    name: campeon-crm-web
+    env: node
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm start"
+    plan: free
+    regions:
+      - iad
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://campeon-crm-api.onrender.com
+      - key: NODE_ENV
+        value: production

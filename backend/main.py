@@ -1,0 +1,45 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from contextlib import asynccontextmanager
+
+# Import routers when database is ready
+from api.bonus_templates import router as bonus_templates_router
+from database.database import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print("🚀 CAMPEON CRM API starting...")
+    init_db()
+    print("✅ Database initialized")
+    yield
+    # Shutdown
+    print("🛑 CAMPEON CRM API shutting down...")
+
+app = FastAPI(
+    title="CAMPEON CRM API",
+    description="Collaborative offer management system",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Add middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8000", "*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(bonus_templates_router, prefix="/api",
+                   tags=["bonus-templates"])
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "CAMPEON CRM API", "timestamp": __import__("datetime").datetime.utcnow().isoformat()}
