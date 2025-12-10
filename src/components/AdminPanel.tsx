@@ -40,11 +40,11 @@ export default function AdminPanel() {
         setConfig(prev => ({ ...prev, provider }));
     };
 
-    const handleCurrencyChange = (currency: string, field: keyof Omit<StableConfig, 'provider'>, value: number) => {
+    const handleCurrencyChange = (currency: string, field: string, value: number) => {
         setConfig(prev => ({
             ...prev,
             [field]: {
-                ...((prev[field] as Record<string, number>) || {}),
+                ...((prev[field as keyof StableConfig] as Record<string, number>) || {}),
                 [currency]: value
             }
         }));
@@ -63,7 +63,7 @@ export default function AdminPanel() {
         }
     };
 
-    const renderCurrencyTable = (field: keyof Omit<StableConfig, 'provider'>, title: string) => (
+    const renderCurrencyTable = (field: string, title: string) => (
         <div className="card bg-slate-900 border-slate-700">
             <h4 className="text-lg font-semibold text-slate-300 mb-4">{title}</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -73,7 +73,7 @@ export default function AdminPanel() {
                         <input
                             type="number"
                             step="0.01"
-                            value={(config[field] as Record<string, number>)[currency] || ''}
+                            value={((config as any)[field] as Record<string, number>)[currency] || ''}
                             onChange={(e) => handleCurrencyChange(currency, field, parseFloat(e.target.value))}
                             className="input-field w-full text-sm"
                             placeholder="0.00"
@@ -101,8 +101,8 @@ export default function AdminPanel() {
                             key={provider}
                             onClick={() => handleProviderChange(provider)}
                             className={`px-6 py-3 rounded-lg font-semibold transition ${selectedProvider === provider
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                 }`}
                         >
                             {provider}
@@ -124,8 +124,8 @@ export default function AdminPanel() {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key as any)}
                             className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap ${activeTab === tab.key
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                                 }`}
                         >
                             {tab.label}

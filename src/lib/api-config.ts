@@ -9,6 +9,7 @@ const API_BASE_URL =
         : 'http://localhost:8000';
 
 export const API_ENDPOINTS = {
+    BASE_URL: API_BASE_URL,
     BONUS_TEMPLATES: `${API_BASE_URL}/api/bonus-templates`,
     HEALTH: `${API_BASE_URL}/health`,
     DOCS: `${API_BASE_URL}/docs`,
