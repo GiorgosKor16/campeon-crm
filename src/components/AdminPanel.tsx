@@ -138,7 +138,7 @@ export default function AdminPanel() {
         const tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
 
         return (
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <div className="bg-slate-800 p-3 rounded flex justify-between items-start">
                     <div>
                         <h4 className="font-semibold text-slate-300 mb-1">{title}</h4>
@@ -152,77 +152,81 @@ export default function AdminPanel() {
                     </button>
                 </div>
 
-                {tables.map((table, tableIdx) => {
-                    const usedCurrencies = Object.keys(table.values).sort();
-                    const unusedCurrencies = CURRENCIES.filter(c => !(c in table.values));
+                {/* Tables displayed side-by-side */}
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                    {tables.map((table, tableIdx) => {
+                        const usedCurrencies = Object.keys(table.values).sort();
+                        const unusedCurrencies = CURRENCIES.filter(c => !(c in table.values));
 
-                    return (
-                        <div key={table.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                            <div className="flex justify-between items-center mb-3">
-                                <h5 className="font-semibold text-slate-200">{table.name}</h5>
-                                {tables.length > 1 && (
+                        return (
+                            <div key={table.id} className="flex-shrink-0 border-t-4 border-blue-500 pt-3 bg-slate-850 rounded p-4 min-w-max">
+                                <div className="flex justify-between items-center mb-3 gap-4">
+                                    <h5 className="font-semibold text-slate-200 text-sm">{table.name}</h5>
+                                    {tables.length > 1 && (
+                                        <button
+                                            onClick={() => handleRemoveTable(field, table.id)}
+                                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-semibold flex-shrink-0"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+
+                                <table className="border-collapse bg-slate-900 text-xs">
+                                    <thead>
+                                        <tr className="bg-slate-800 border-b border-slate-700">
+                                            <th className="px-3 py-1 text-left font-semibold text-blue-300 border-r border-slate-700">Currency</th>
+                                            <th className="px-3 py-1 text-center font-semibold text-green-300">Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {usedCurrencies.map((currency, idx) => (
+                                            <tr key={currency} className={`border-b border-slate-700 ${idx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-850'}`}>
+                                                <td className="px-3 py-1 text-xs font-bold text-blue-300 border-r border-slate-700 bg-slate-800 w-20">
+                                                    {currency}
+                                                </td>
+                                                <td className="px-3 py-1">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={table.values[currency] || ''}
+                                                        onChange={(e) => handleCurrencyChange(field, table.id, currency, parseFloat(e.target.value) || 0)}
+                                                        className="w-16 bg-slate-700 text-white text-center px-2 py-1 rounded text-xs border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                                        placeholder="0"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                                <div className="flex gap-2 mt-3">
                                     <button
-                                        onClick={() => handleRemoveTable(field, table.id)}
-                                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-semibold"
+                                        onClick={() => handleAddCurrency(field, table.id)}
+                                        disabled={unusedCurrencies.length === 0}
+                                        className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        🗑️ Delete Table
+                                        + Add
                                     </button>
+                                    {usedCurrencies.length > 0 && (
+                                        <button
+                                            onClick={() => handleRemoveCurrency(field, table.id, usedCurrencies[usedCurrencies.length - 1])}
+                                            className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-semibold"
+                                        >
+                                            ✕ Remove
+                                        </button>
+                                    )}
+                                </div>
+
+                                {usedCurrencies.length === 0 && (
+                                    <div className="text-center py-2 text-slate-400 text-xs">
+                                        No currencies
+                                    </div>
                                 )}
                             </div>
-
-                            <table className="w-full border-collapse bg-slate-900 text-sm">
-                                <thead>
-                                    <tr className="bg-slate-800 border-b border-slate-700">
-                                        <th className="px-4 py-2 text-left font-semibold text-blue-300 border-r border-slate-700">Currency</th>
-                                        <th className="px-4 py-2 text-center font-semibold text-green-300">Value</th>
-                                        <th className="px-4 py-2 text-center font-semibold text-red-300 w-20">Remove</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {usedCurrencies.map((currency, idx) => (
-                                        <tr key={currency} className={`border-b border-slate-700 ${idx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-850'}`}>
-                                            <td className="px-4 py-2 text-sm font-bold text-blue-300 border-r border-slate-700 bg-slate-800 w-24">
-                                                {currency}
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={table.values[currency] || ''}
-                                                    onChange={(e) => handleCurrencyChange(field, table.id, currency, parseFloat(e.target.value) || 0)}
-                                                    className="w-full bg-slate-700 text-white text-center px-3 py-2 rounded text-sm border border-slate-600 focus:border-blue-500 focus:outline-none"
-                                                    placeholder="0"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-2 text-center">
-                                                <button
-                                                    onClick={() => handleRemoveCurrency(field, table.id, currency)}
-                                                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-semibold"
-                                                >
-                                                    ✕
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-
-                            <button
-                                onClick={() => handleAddCurrency(field, table.id)}
-                                disabled={unusedCurrencies.length === 0}
-                                className="mt-3 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                + Add Currency
-                            </button>
-
-                            {usedCurrencies.length === 0 && (
-                                <div className="text-center py-4 text-slate-400 text-sm">
-                                    No currencies added yet. Click "+ Add Currency" to get started.
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
         );
     };
