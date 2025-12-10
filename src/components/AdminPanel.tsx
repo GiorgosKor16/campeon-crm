@@ -8,38 +8,50 @@ import { API_ENDPOINTS } from '@/lib/api-config';
 const CURRENCIES = ['EUR', 'USD', 'CAD', 'AUD', 'NZD', 'GBP', 'BRL', 'NOK', 'PEN', 'CLP', 'MXN', 'CHF', 'ZAR', 'PLN', 'AZN', 'TRY', 'JPY', 'KZT', 'RUB', 'HUF', 'UZS'];
 const PROVIDERS = ['PRAGMATIC', 'BETSOFT'];
 
-interface StableConfig {
+interface CurrencyTable {
+    id: string;
+    name: string;
+    values: Record<string, number>;
+}
+
+interface StableConfigWithVariations {
     provider: string;
-    cost: Record<string, number>;
-    maximum_amount: Record<string, number>;
-    minimum_amount: Record<string, number>;
-    minimum_stake_to_wager: Record<string, number>;
-    maximum_stake_to_wager: Record<string, number>;
-    maximum_withdraw: Record<string, number>;
+    cost: CurrencyTable[];
+    maximum_amount: CurrencyTable[];
+    minimum_amount: CurrencyTable[];
+    minimum_stake_to_wager: CurrencyTable[];
+    maximum_stake_to_wager: CurrencyTable[];
+    maximum_withdraw: CurrencyTable[];
 }
 
 export default function AdminPanel() {
     const [selectedProvider, setSelectedProvider] = useState('PRAGMATIC');
     const [activeTab, setActiveTab] = useState<'cost' | 'amounts' | 'stakes' | 'withdrawals'>('cost');
 
-    const [pragmaticConfig, setPragmaticConfig] = useState<StableConfig>({
+    const defaultTable: CurrencyTable = {
+        id: '1',
+        name: 'Table 1',
+        values: { 'EUR': 0.2 }
+    };
+
+    const [pragmaticConfig, setPragmaticConfig] = useState<StableConfigWithVariations>({
         provider: 'PRAGMATIC',
-        cost: Object.fromEntries(CURRENCIES.map(c => [c, 0.2])),
-        maximum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 300])),
-        minimum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 25])),
-        minimum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 0.5])),
-        maximum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 5])),
-        maximum_withdraw: Object.fromEntries(CURRENCIES.map(c => [c, 100])),
+        cost: [defaultTable],
+        maximum_amount: [defaultTable],
+        minimum_amount: [defaultTable],
+        minimum_stake_to_wager: [defaultTable],
+        maximum_stake_to_wager: [defaultTable],
+        maximum_withdraw: [defaultTable],
     });
 
-    const [betsoftConfig, setBetsoftConfig] = useState<StableConfig>({
+    const [betsoftConfig, setBetsoftConfig] = useState<StableConfigWithVariations>({
         provider: 'BETSOFT',
-        cost: Object.fromEntries(CURRENCIES.map(c => [c, 0.2])),
-        maximum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 300])),
-        minimum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 25])),
-        minimum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 0.5])),
-        maximum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 5])),
-        maximum_withdraw: Object.fromEntries(CURRENCIES.map(c => [c, 100])),
+        cost: [defaultTable],
+        maximum_amount: [defaultTable],
+        minimum_amount: [defaultTable],
+        minimum_stake_to_wager: [defaultTable],
+        maximum_stake_to_wager: [defaultTable],
+        maximum_withdraw: [defaultTable],
     });
 
     const [message, setMessage] = useState('');
@@ -48,13 +60,64 @@ export default function AdminPanel() {
     const config = selectedProvider === 'PRAGMATIC' ? pragmaticConfig : betsoftConfig;
     const setConfig = selectedProvider === 'PRAGMATIC' ? setPragmaticConfig : setBetsoftConfig;
 
-    const handleCurrencyChange = (currency: string, field: string, value: number) => {
+    const handleCurrencyChange = (field: string, tableId: string, currency: string, value: number) => {
         setConfig(prev => ({
             ...prev,
-            [field]: {
-                ...((prev[field as keyof StableConfig] as Record<string, number>) || {}),
-                [currency]: value
-            }
+            [field]: (prev[field as keyof StableConfigWithVariations] as CurrencyTable[]).map(table =>
+                table.id === tableId
+                    ? { ...table, values: { ...table.values, [currency]: value } }
+                    : table
+            )
+        }));
+    };
+
+    const handleRemoveCurrency = (field: string, tableId: string, currency: string) => {
+        setConfig(prev => ({
+            ...prev,
+            [field]: (prev[field as keyof StableConfigWithVariations] as CurrencyTable[]).map(table =>
+                table.id === tableId
+                    ? { ...table, values: Object.fromEntries(Object.entries(table.values).filter(([k]) => k !== currency)) }
+                    : table
+            )
+        }));
+    };
+
+    const handleAddCurrency = (field: string, tableId: string) => {
+        const tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
+        const currentTable = tables.find(t => t.id === tableId);
+        if (!currentTable) return;
+
+        const unusedCurrencies = CURRENCIES.filter(c => !(c in currentTable.values));
+        if (unusedCurrencies.length > 0) {
+            setConfig(prev => ({
+                ...prev,
+                [field]: (prev[field as keyof StableConfigWithVariations] as CurrencyTable[]).map(table =>
+                    table.id === tableId
+                        ? { ...table, values: { ...table.values, [unusedCurrencies[0]]: 0 } }
+                        : table
+                )
+            }));
+        }
+    };
+
+    const handleAddTable = (field: string) => {
+        const tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
+        const newId = String(Math.max(0, ...tables.map(t => parseInt(t.id))) + 1);
+        const newTable: CurrencyTable = {
+            id: newId,
+            name: `Table ${newId}`,
+            values: { 'EUR': 0.25 }
+        };
+        setConfig(prev => ({
+            ...prev,
+            [field]: [...(prev[field as keyof StableConfigWithVariations] as CurrencyTable[]), newTable]
+        }));
+    };
+
+    const handleRemoveTable = (field: string, tableId: string) => {
+        setConfig(prev => ({
+            ...prev,
+            [field]: (prev[field as keyof StableConfigWithVariations] as CurrencyTable[]).filter(t => t.id !== tableId)
         }));
     };
 
@@ -71,93 +134,95 @@ export default function AdminPanel() {
         }
     };
 
-    const handleRemoveCurrency = (currency: string, field: string) => {
-        setConfig(prev => {
-            const fieldData = { ...(prev[field as keyof StableConfig] as Record<string, number>) };
-            delete fieldData[currency];
-            return {
-                ...prev,
-                [field]: fieldData
-            };
-        });
-    };
-
-    const handleAddCurrency = (field: string) => {
-        const fieldData = (config as any)[field] as Record<string, number>;
-        const unusedCurrencies = CURRENCIES.filter(c => !(c in fieldData));
-        if (unusedCurrencies.length > 0) {
-            const newCurrency = unusedCurrencies[0];
-            setConfig(prev => ({
-                ...prev,
-                [field]: {
-                    ...(prev[field as keyof StableConfig] as Record<string, number>),
-                    [newCurrency]: 0
-                }
-            }));
-        }
-    };
-
     const renderSettingTable = (field: string, title: string, description: string) => {
-        const fieldData = (config as any)[field] as Record<string, number>;
-        const usedCurrencies = Object.keys(fieldData).sort();
-        const unusedCurrencies = CURRENCIES.filter(c => !(c in fieldData));
+        const tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
 
         return (
-            <div className="space-y-4">
+            <div className="space-y-6">
                 <div className="bg-slate-800 p-3 rounded flex justify-between items-start">
                     <div>
                         <h4 className="font-semibold text-slate-300 mb-1">{title}</h4>
                         <p className="text-xs text-slate-400">{description}</p>
                     </div>
                     <button
-                        onClick={() => handleAddCurrency(field)}
-                        disabled={unusedCurrencies.length === 0}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ml-4"
+                        onClick={() => handleAddTable(field)}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded font-semibold whitespace-nowrap ml-4"
                     >
-                        + Add Currency
+                        + Add Table
                     </button>
                 </div>
-                <table className="w-full border-collapse bg-slate-900 text-sm">
-                    <thead>
-                        <tr className="bg-slate-800 border-b border-slate-700">
-                            <th className="px-4 py-2 text-left font-semibold text-blue-300 border-r border-slate-700">Currency</th>
-                            <th className="px-4 py-2 text-center font-semibold text-green-300">Value</th>
-                            <th className="px-4 py-2 text-center font-semibold text-red-300 w-20">Remove</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {usedCurrencies.map((currency, idx) => (
-                            <tr key={currency} className={`border-b border-slate-700 ${idx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-850'}`}>
-                                <td className="px-4 py-2 text-sm font-bold text-blue-300 border-r border-slate-700 bg-slate-800 w-24">
-                                    {currency}
-                                </td>
-                                <td className="px-4 py-2">
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        value={fieldData[currency] || ''}
-                                        onChange={(e) => handleCurrencyChange(currency, field, parseFloat(e.target.value) || 0)}
-                                        className="w-full bg-slate-700 text-white text-center px-3 py-2 rounded text-sm border border-slate-600 focus:border-blue-500 focus:outline-none"
-                                        placeholder="0"
-                                    />
-                                </td>
-                                <td className="px-4 py-2 text-center">
+
+                {tables.map((table, tableIdx) => {
+                    const usedCurrencies = Object.keys(table.values).sort();
+                    const unusedCurrencies = CURRENCIES.filter(c => !(c in table.values));
+
+                    return (
+                        <div key={table.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                            <div className="flex justify-between items-center mb-3">
+                                <h5 className="font-semibold text-slate-200">{table.name}</h5>
+                                {tables.length > 1 && (
                                     <button
-                                        onClick={() => handleRemoveCurrency(currency, field)}
+                                        onClick={() => handleRemoveTable(field, table.id)}
                                         className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-semibold"
                                     >
-                                        ✕
+                                        🗑️ Delete Table
                                     </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {usedCurrencies.length === 0 && (
-                    <div className="text-center py-4 text-slate-400 text-sm">
-                        No currencies added yet. Click "+ Add Currency" to get started.
-                    </div>
-                )}
+                                )}
+                            </div>
+
+                            <table className="w-full border-collapse bg-slate-900 text-sm">
+                                <thead>
+                                    <tr className="bg-slate-800 border-b border-slate-700">
+                                        <th className="px-4 py-2 text-left font-semibold text-blue-300 border-r border-slate-700">Currency</th>
+                                        <th className="px-4 py-2 text-center font-semibold text-green-300">Value</th>
+                                        <th className="px-4 py-2 text-center font-semibold text-red-300 w-20">Remove</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {usedCurrencies.map((currency, idx) => (
+                                        <tr key={currency} className={`border-b border-slate-700 ${idx % 2 === 0 ? 'bg-slate-900' : 'bg-slate-850'}`}>
+                                            <td className="px-4 py-2 text-sm font-bold text-blue-300 border-r border-slate-700 bg-slate-800 w-24">
+                                                {currency}
+                                            </td>
+                                            <td className="px-4 py-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={table.values[currency] || ''}
+                                                    onChange={(e) => handleCurrencyChange(field, table.id, currency, parseFloat(e.target.value) || 0)}
+                                                    className="w-full bg-slate-700 text-white text-center px-3 py-2 rounded text-sm border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                                    placeholder="0"
+                                                />
+                                            </td>
+                                            <td className="px-4 py-2 text-center">
+                                                <button
+                                                    onClick={() => handleRemoveCurrency(field, table.id, currency)}
+                                                    className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded font-semibold"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+
+                            <button
+                                onClick={() => handleAddCurrency(field, table.id)}
+                                disabled={unusedCurrencies.length === 0}
+                                className="mt-3 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                + Add Currency
+                            </button>
+
+                            {usedCurrencies.length === 0 && (
+                                <div className="text-center py-4 text-slate-400 text-sm">
+                                    No currencies added yet. Click "+ Add Currency" to get started.
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         );
     };
