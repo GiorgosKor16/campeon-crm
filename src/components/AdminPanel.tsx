@@ -250,65 +250,145 @@ export default function AdminPanel() {
             </div>
 
             {/* Provider Selection */}
-            <div className="grid grid-cols-2 gap-4">
-                <button
-                    onClick={() => setSelectedProvider('PRAGMATIC')}
-                    className={`relative overflow-hidden group py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 ${selectedProvider === 'PRAGMATIC'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-2xl shadow-blue-500/50'
-                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600 border border-slate-600'
-                        }`}
-                >
-                    <span className="relative z-10 flex items-center justify-center gap-2">🎰 PRAGMATIC</span>
-                </button>
-                <button
-                    onClick={() => setSelectedProvider('BETSOFT')}
-                    className={`relative overflow-hidden group py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 ${selectedProvider === 'BETSOFT'
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-2xl shadow-purple-500/50'
-                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600 border border-slate-600'
-                        }`}
-                >
-                    <span className="relative z-10 flex items-center justify-center gap-2">🎲 BETSOFT</span>
-                </button>
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Select Provider</h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <button
+                        onClick={() => setSelectedProvider('PRAGMATIC')}
+                        className={`relative group overflow-hidden rounded-2xl transition-all duration-500 transform hover:scale-105 ${selectedProvider === 'PRAGMATIC'
+                                ? 'ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900'
+                                : ''
+                            }`}
+                    >
+                        <div className={`absolute inset-0 transition-all duration-500 ${selectedProvider === 'PRAGMATIC'
+                                ? 'bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500'
+                                : 'bg-gradient-to-br from-slate-700 to-slate-600 group-hover:from-slate-600 group-hover:to-slate-500'
+                            }`} />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all" />
+                        <div className="relative z-10 py-6 px-6 flex flex-col items-center gap-3">
+                            <span className="text-4xl">🎰</span>
+                            <div>
+                                <div className={`font-black text-xl ${selectedProvider === 'PRAGMATIC' ? 'text-white' : 'text-slate-300 group-hover:text-white'} transition-colors`}>
+                                    PRAGMATIC
+                                </div>
+                                <div className={`text-xs ${selectedProvider === 'PRAGMATIC' ? 'text-blue-100' : 'text-slate-400'} transition-colors`}>
+                                    {selectedProvider === 'PRAGMATIC' ? '✓ Active' : 'Click to select'}
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setSelectedProvider('BETSOFT')}
+                        className={`relative group overflow-hidden rounded-2xl transition-all duration-500 transform hover:scale-105 ${selectedProvider === 'BETSOFT'
+                                ? 'ring-2 ring-purple-400 ring-offset-2 ring-offset-slate-900'
+                                : ''
+                            }`}
+                    >
+                        <div className={`absolute inset-0 transition-all duration-500 ${selectedProvider === 'BETSOFT'
+                                ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500'
+                                : 'bg-gradient-to-br from-slate-700 to-slate-600 group-hover:from-slate-600 group-hover:to-slate-500'
+                            }`} />
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all" />
+                        <div className="relative z-10 py-6 px-6 flex flex-col items-center gap-3">
+                            <span className="text-4xl">🎲</span>
+                            <div>
+                                <div className={`font-black text-xl ${selectedProvider === 'BETSOFT' ? 'text-white' : 'text-slate-300 group-hover:text-white'} transition-colors`}>
+                                    BETSOFT
+                                </div>
+                                <div className={`text-xs ${selectedProvider === 'BETSOFT' ? 'text-purple-100' : 'text-slate-400'} transition-colors`}>
+                                    {selectedProvider === 'BETSOFT' ? '✓ Active' : 'Click to select'}
+                                </div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex gap-2 border-b-2 border-slate-700 overflow-x-auto pb-0">
-                <button
-                    onClick={() => setActiveTab('cost')}
-                    className={`px-6 py-4 font-semibold text-sm whitespace-nowrap border-b-4 transition-all duration-300 ${activeTab === 'cost'
-                        ? 'border-blue-500 text-blue-400 bg-slate-700/30'
-                        : 'border-transparent text-slate-400 hover:text-slate-300'
-                        }`}
-                >
-                    💰 Cost
-                </button>
-                <button
-                    onClick={() => setActiveTab('amounts')}
-                    className={`px-6 py-4 font-semibold text-sm whitespace-nowrap border-b-4 transition-all duration-300 ${activeTab === 'amounts'
-                        ? 'border-green-500 text-green-400 bg-slate-700/30'
-                        : 'border-transparent text-slate-400 hover:text-slate-300'
-                        }`}
-                >
-                    💵 Amounts
-                </button>
-                <button
-                    onClick={() => setActiveTab('stakes')}
-                    className={`px-6 py-4 font-semibold text-sm whitespace-nowrap border-b-4 transition-all duration-300 ${activeTab === 'stakes'
-                        ? 'border-yellow-500 text-yellow-400 bg-slate-700/30'
-                        : 'border-transparent text-slate-400 hover:text-slate-300'
-                        }`}
-                >
-                    🎯 Stakes
-                </button>
-                <button
-                    onClick={() => setActiveTab('withdrawals')}
-                    className={`px-6 py-4 font-semibold text-sm whitespace-nowrap border-b-4 transition-all duration-300 ${activeTab === 'withdrawals'
-                        ? 'border-orange-500 text-orange-400 bg-slate-700/30'
-                        : 'border-transparent text-slate-400 hover:text-slate-300'
-                        }`}
-                >
-                    🏦 Withdrawals
-                </button>
+            <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Configuration Section</h3>
+                <div className="grid grid-cols-4 gap-3">
+                    <button
+                        onClick={() => setActiveTab('cost')}
+                        className={`relative group rounded-xl overflow-hidden transition-all duration-400 transform ${activeTab === 'cost' ? 'scale-105' : 'hover:scale-102'
+                            }`}
+                    >
+                        <div className={`absolute inset-0 transition-all duration-400 ${activeTab === 'cost'
+                                ? 'bg-gradient-to-br from-blue-600 to-cyan-500'
+                                : 'bg-gradient-to-br from-slate-700 to-slate-600 group-hover:from-slate-600 group-hover:to-slate-500'
+                            }`} />
+                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all" />
+                        <div className={`relative z-10 py-4 px-4 flex flex-col items-center gap-2 border-2 transition-all ${activeTab === 'cost'
+                                ? 'border-blue-300 shadow-2xl shadow-blue-500/30'
+                                : 'border-slate-600 group-hover:border-slate-500'
+                            }`}>
+                            <span className="text-2xl">💰</span>
+                            <div className={`font-bold text-sm ${activeTab === 'cost' ? 'text-white' : 'text-slate-300'} transition-colors text-center`}>
+                                Cost
+                            </div>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('amounts')}
+                        className={`relative group rounded-xl overflow-hidden transition-all duration-400 transform ${activeTab === 'amounts' ? 'scale-105' : 'hover:scale-102'
+                            }`}
+                    >
+                        <div className={`absolute inset-0 transition-all duration-400 ${activeTab === 'amounts'
+                                ? 'bg-gradient-to-br from-green-600 to-emerald-500'
+                                : 'bg-gradient-to-br from-slate-700 to-slate-600 group-hover:from-slate-600 group-hover:to-slate-500'
+                            }`} />
+                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all" />
+                        <div className={`relative z-10 py-4 px-4 flex flex-col items-center gap-2 border-2 transition-all ${activeTab === 'amounts'
+                                ? 'border-green-300 shadow-2xl shadow-green-500/30'
+                                : 'border-slate-600 group-hover:border-slate-500'
+                            }`}>
+                            <span className="text-2xl">💵</span>
+                            <div className={`font-bold text-sm ${activeTab === 'amounts' ? 'text-white' : 'text-slate-300'} transition-colors text-center`}>
+                                Amounts
+                            </div>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('stakes')}
+                        className={`relative group rounded-xl overflow-hidden transition-all duration-400 transform ${activeTab === 'stakes' ? 'scale-105' : 'hover:scale-102'
+                            }`}
+                    >
+                        <div className={`absolute inset-0 transition-all duration-400 ${activeTab === 'stakes'
+                                ? 'bg-gradient-to-br from-yellow-600 to-orange-500'
+                                : 'bg-gradient-to-br from-slate-700 to-slate-600 group-hover:from-slate-600 group-hover:to-slate-500'
+                            }`} />
+                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all" />
+                        <div className={`relative z-10 py-4 px-4 flex flex-col items-center gap-2 border-2 transition-all ${activeTab === 'stakes'
+                                ? 'border-yellow-300 shadow-2xl shadow-yellow-500/30'
+                                : 'border-slate-600 group-hover:border-slate-500'
+                            }`}>
+                            <span className="text-2xl">🎯</span>
+                            <div className={`font-bold text-sm ${activeTab === 'stakes' ? 'text-white' : 'text-slate-300'} transition-colors text-center`}>
+                                Stakes
+                            </div>
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('withdrawals')}
+                        className={`relative group rounded-xl overflow-hidden transition-all duration-400 transform ${activeTab === 'withdrawals' ? 'scale-105' : 'hover:scale-102'
+                            }`}
+                    >
+                        <div className={`absolute inset-0 transition-all duration-400 ${activeTab === 'withdrawals'
+                                ? 'bg-gradient-to-br from-red-600 to-pink-500'
+                                : 'bg-gradient-to-br from-slate-700 to-slate-600 group-hover:from-slate-600 group-hover:to-slate-500'
+                            }`} />
+                        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-all" />
+                        <div className={`relative z-10 py-4 px-4 flex flex-col items-center gap-2 border-2 transition-all ${activeTab === 'withdrawals'
+                                ? 'border-red-300 shadow-2xl shadow-red-500/30'
+                                : 'border-slate-600 group-hover:border-slate-500'
+                            }`}>
+                            <span className="text-2xl">🏦</span>
+                            <div className={`font-bold text-sm ${activeTab === 'withdrawals' ? 'text-white' : 'text-slate-300'} transition-colors text-center`}>
+                                Withdrawals
+                            </div>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             {/* Tab Content */}
