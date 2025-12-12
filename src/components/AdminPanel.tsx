@@ -135,7 +135,10 @@ export default function AdminPanel() {
     };
 
     const renderSettingTable = (field: string, title: string, description: string) => {
-        const tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
+        let tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
+
+        // Sort tables by EUR value (ascending)
+        tables = [...tables].sort((a, b) => (a.values['EUR'] || 0) - (b.values['EUR'] || 0));
 
         return (
             <div className="space-y-4">
@@ -152,16 +155,16 @@ export default function AdminPanel() {
                     </button>
                 </div>
 
-                {/* Tables displayed side-by-side */}
-                <div className="flex gap-6 overflow-x-auto pb-2 w-full">
+                {/* Tables displayed side-by-side - flex-row with flex-nowrap */}
+                <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '1.5rem', overflowX: 'auto', paddingBottom: '0.5rem', width: '100%' }}>
                     {tables.map((table, tableIdx) => {
                         const usedCurrencies = Object.keys(table.values).sort();
                         const unusedCurrencies = CURRENCIES.filter(c => !(c in table.values));
 
                         return (
-                            <div key={table.id} className="flex-shrink-0 border-t-4 border-blue-500 pt-3 bg-slate-850 rounded p-4">
+                            <div key={table.id} style={{ flexShrink: 0 }} className="border-t-4 border-blue-500 pt-3 bg-slate-850 rounded p-4">
                                 <div className="flex justify-between items-center mb-3 gap-4 whitespace-nowrap">
-                                    <h5 className="font-semibold text-slate-200 text-sm">{table.name}</h5>
+                                    <h5 className="font-semibold text-slate-200 text-sm">{table.name} (EUR: {table.values['EUR']?.toFixed(2) || '0.00'})</h5>
                                     {tables.length > 1 && (
                                         <button
                                             onClick={() => handleRemoveTable(field, table.id)}
