@@ -16,6 +16,17 @@ def save_stable_config(config: StableConfigCreate, db: Session = Depends(get_db)
     Creates new record if provider doesn't exist, otherwise updates existing.
     """
     try:
+        # Convert Pydantic models to dicts for JSON serialization
+        config_data = config.dict()
+
+        # Convert CurrencyTable objects to dicts if needed
+        for field in ['cost', 'maximum_amount', 'minimum_amount', 'minimum_stake_to_wager', 'maximum_stake_to_wager', 'maximum_withdraw']:
+            if field in config_data and config_data[field]:
+                config_data[field] = [
+                    item.dict() if hasattr(item, 'dict') else item
+                    for item in config_data[field]
+                ]
+
         # Check if config exists for this provider
         existing_config = db.query(StableConfig).filter(
             StableConfig.provider == config.provider
@@ -23,18 +34,26 @@ def save_stable_config(config: StableConfigCreate, db: Session = Depends(get_db)
 
         if existing_config:
             # Update existing
-            existing_config.cost = config.cost
-            existing_config.maximum_amount = config.maximum_amount
-            existing_config.minimum_amount = config.minimum_amount
-            existing_config.minimum_stake_to_wager = config.minimum_stake_to_wager
-            existing_config.maximum_stake_to_wager = config.maximum_stake_to_wager
-            existing_config.maximum_withdraw = config.maximum_withdraw
+            existing_config.cost = config_data['cost']
+            existing_config.maximum_amount = config_data['maximum_amount']
+            existing_config.minimum_amount = config_data['minimum_amount']
+            existing_config.minimum_stake_to_wager = config_data['minimum_stake_to_wager']
+            existing_config.maximum_stake_to_wager = config_data['maximum_stake_to_wager']
+            existing_config.maximum_withdraw = config_data['maximum_withdraw']
             db.commit()
             db.refresh(existing_config)
             return existing_config
         else:
             # Create new
-            new_config = StableConfig(**config.dict())
+            new_config = StableConfig(
+                provider=config.provider,
+                cost=config_data['cost'],
+                maximum_amount=config_data['maximum_amount'],
+                minimum_amount=config_data['minimum_amount'],
+                minimum_stake_to_wager=config_data['minimum_stake_to_wager'],
+                maximum_stake_to_wager=config_data['maximum_stake_to_wager'],
+                maximum_withdraw=config_data['maximum_withdraw']
+            )
             db.add(new_config)
             db.commit()
             db.refresh(new_config)
