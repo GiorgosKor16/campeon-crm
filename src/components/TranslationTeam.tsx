@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-interface Offer {
-    id: number;
-    name: string;
-    offer_type: string;
+interface BonusTemplate {
+    id: string;
+    category: string;
+    provider: string;
+    brand: string;
+    created_at: string;
 }
 
 interface Translation {
@@ -24,9 +26,19 @@ const LANGUAGES = [
     { code: 'pt', name: 'Portuguese' },
 ];
 
+const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export default function TranslationTeam() {
-    const [offers, setOffers] = useState<Offer[]>([]);
-    const [selectedOfferId, setSelectedOfferId] = useState('');
+    const today = new Date();
+    const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+
+    const [bonuses, setBonuses] = useState<BonusTemplate[]>([]);
+    const [selectedBonusId, setSelectedBonusId] = useState('');
+    const [searchId, setSearchId] = useState('');
     const [translations, setTranslations] = useState<Translation[]>(
         LANGUAGES.map(lang => ({
             language: lang.code,
@@ -38,15 +50,62 @@ export default function TranslationTeam() {
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        fetchOffers();
-    }, []);
+        fetchBonusesForMonth();
+    }, [selectedYear, selectedMonth]);
 
-    const fetchOffers = async () => {
+    const fetchBonusesForMonth = async () => {
         try {
-            const response = await axios.get('http://localhost:8000/api/offers');
-            setOffers(response.data);
+            setLoading(true);
+            const response = await axios.get(
+                `http://localhost:8000/api/bonus-templates/dates/${selectedYear}/${selectedMonth + 1}`
+            );
+            setBonuses(response.data);
         } catch (error) {
-            console.error('Error fetching offers:', error);
+            console.error('Error fetching bonuses:', error);
+            setBonuses([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearchBonusId = async () => {
+        if (!searchId.trim()) {
+            setMessage('❌ Please enter a bonus ID');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await axios.get(
+                `http://localhost:8000/api/bonus-templates/search?id=${searchId}`
+            );
+            setBonuses([response.data]);
+            setSelectedBonusId(response.data.id);
+            setMessage(`✅ Found bonus: ${searchId}`);
+        } catch (error) {
+            setMessage(`❌ Bonus not found: ${searchId}`);
+            setBonuses([]);
+            setSelectedBonusId('');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePreviousMonth = () => {
+        if (selectedMonth === 0) {
+            setSelectedMonth(11);
+            setSelectedYear(selectedYear - 1);
+        } else {
+            setSelectedMonth(selectedMonth - 1);
+        }
+    };
+
+    const handleNextMonth = () => {
+        if (selectedMonth === 11) {
+            setSelectedMonth(0);
+            setSelectedYear(selectedYear + 1);
+        } else {
+            setSelectedMonth(selectedMonth + 1);
         }
     };
 
@@ -59,21 +118,90 @@ export default function TranslationTeam() {
         setTranslations(updatedTranslations);
     };
 
+    const handleSelectBonus = async (bonusId: string) => {
+        setSelectedBonusId(bonusId);
+        setMessage('');
+
+        // Load existing translations for this bonus
+        try {
+            console.log('Loading translations for bonus:', bonusId);
+            const response = await axios.get(
+                `http://localhost:8000/api/bonus-templates/${bonusId}/translations`
+            );
+
+            console.log('Received translations:', response.data);
+
+            // Map existing translations to the form
+            const existingTranslations = response.data || [];
+            const updatedTranslations = LANGUAGES.map(lang => {
+                const existing = existingTranslations.find(
+                    (t: any) => t.language === lang.code
+                );
+                console.log(`Looking for ${lang.code}:`, existing);
+                return {
+                    language: lang.code,
+                    offer_name: existing?.name || '',
+                    offer_description: existing?.description || '',
+                };
+            });
+
+            console.log('Updated translations:', updatedTranslations);
+            setTranslations(updatedTranslations);
+        } catch (error: any) {
+            // No translations found yet, keep empty form
+            console.error('Error loading translations:', error.response?.status, error.message);
+            setTranslations(
+                LANGUAGES.map(lang => ({
+                    language: lang.code,
+                    offer_name: '',
+                    offer_description: '',
+                }))
+            );
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedOfferId) {
-            setMessage('❌ Please select an offer');
+        if (!selectedBonusId) {
+            setMessage('❌ Please select a bonus');
             return;
         }
 
         setLoading(true);
+        setMessage(''); // Clear previous messages
         try {
-            await axios.post(`http://localhost:8000/api/offers/${selectedOfferId}/translations`, {
-                translations,
-            });
-            setMessage('✅ Translations saved successfully!');
-        } catch (error) {
-            setMessage('❌ Error saving translations');
+            let savedCount = 0;
+            // Save each translation individually
+            for (const trans of translations) {
+                if (trans.offer_name || trans.offer_description) {
+                    console.log(`Saving translation for ${trans.language}:`, trans);
+                    const response = await axios.post(
+                        `http://localhost:8000/api/bonus-templates/${selectedBonusId}/translations`,
+                        {
+                            language: trans.language,
+                            name: trans.offer_name,
+                            description: trans.offer_description,
+                            currency: 'USD'
+                        }
+                    );
+                    console.log(`Saved ${trans.language}:`, response.data);
+                    savedCount++;
+                }
+            }
+
+            if (savedCount === 0) {
+                setMessage('⚠️ No content to save. Please fill in at least one field.');
+            } else {
+                setMessage(`✅ Saved ${savedCount} translation(s) successfully!`);
+                // Wait a moment then reload the translations to confirm they were saved
+                setTimeout(async () => {
+                    await handleSelectBonus(selectedBonusId);
+                }, 500);
+            }
+        } catch (error: any) {
+            console.error('Error saving translations:', error);
+            const errorMsg = error.response?.data?.detail || error.message || 'Unknown error';
+            setMessage(`❌ Error saving translations: ${errorMsg}`);
         } finally {
             setLoading(false);
         }
@@ -82,59 +210,156 @@ export default function TranslationTeam() {
     return (
         <div className="space-y-6">
             <div className="bg-slate-700/50 border border-slate-600 rounded p-4">
-                <h2 className="text-xl font-bold text-green-400 mb-4">Add Translations</h2>
-                <p className="text-slate-300 text-sm">Select an offer and provide translations in multiple languages.</p>
+                <h2 className="text-xl font-bold text-green-400 mb-4">🌐 Add Translations</h2>
+                <p className="text-slate-300 text-sm">Search or browse bonuses by month, then provide translations in multiple languages.</p>
             </div>
 
-            {/* Offer Selection */}
-            <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Select Offer</label>
-                <select
-                    value={selectedOfferId}
-                    onChange={(e) => setSelectedOfferId(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-green-500"
-                >
-                    <option value="">Choose an offer...</option>
-                    {offers.map(offer => (
-                        <option key={offer.id} value={offer.id}>
-                            {offer.name} ({offer.offer_type})
-                        </option>
-                    ))}
-                </select>
+            {/* Search by Bonus ID */}
+            <div className="bg-slate-700/30 border border-slate-600 rounded p-4">
+                <h3 className="text-lg font-semibold text-blue-400 mb-3">🔍 Search by Bonus ID</h3>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={searchId}
+                        onChange={(e) => setSearchId(e.target.value)}
+                        placeholder="Enter bonus ID..."
+                        className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                        onClick={handleSearchBonusId}
+                        disabled={loading}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-semibold rounded transition-colors"
+                    >
+                        {loading ? 'Searching...' : 'Search'}
+                    </button>
+                </div>
             </div>
 
-            {selectedOfferId && (
+            {/* Month Navigation */}
+            <div className="bg-slate-700/30 border border-slate-600 rounded p-4">
+                <h3 className="text-lg font-semibold text-purple-400 mb-4">📅 Browse by Month</h3>
+                <div className="flex items-center justify-between gap-4">
+                    <button
+                        onClick={handlePreviousMonth}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+                    >
+                        ← Previous
+                    </button>
+                    <div className="text-center text-lg font-semibold text-green-400">
+                        {MONTHS[selectedMonth]} {selectedYear}
+                    </div>
+                    <button
+                        onClick={handleNextMonth}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+                    >
+                        Next →
+                    </button>
+                </div>
+            </div>
+
+            {/* Bonuses List for Selected Month */}
+            <div className="bg-slate-700/30 border border-slate-600 rounded p-4">
+                <h3 className="text-lg font-semibold text-yellow-400 mb-3">
+                    📋 Bonuses Created in {MONTHS[selectedMonth]} {selectedYear}
+                </h3>
+
+                {loading ? (
+                    <div className="text-center text-slate-300">Loading bonuses...</div>
+                ) : bonuses.length === 0 ? (
+                    <div className="text-center text-slate-400">No bonuses found for this month</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
+                        {bonuses.map(bonus => (
+                            <button
+                                key={bonus.id}
+                                onClick={() => handleSelectBonus(bonus.id)}
+                                className={`p-3 rounded border text-left transition-all ${selectedBonusId === bonus.id
+                                    ? 'bg-green-700/40 border-green-500 text-green-300'
+                                    : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
+                                    }`}
+                            >
+                                <div className="font-semibold text-sm">{bonus.id}</div>
+                                <div className="text-xs text-slate-400">
+                                    {bonus.provider} • {bonus.brand} • {bonus.category}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {selectedBonusId && (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Translations Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Selected Bonus Info */}
+                    <div className="bg-green-700/20 border border-green-600 rounded p-3">
+                        <p className="text-green-400 font-semibold">✓ Selected Bonus: <span className="text-green-300">{selectedBonusId}</span></p>
+                    </div>
+
+                    {/* Translations Grid - Horizontal Columns */}
+                    <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem', backgroundColor: '#1e293b', borderRadius: '0.5rem', border: '1px solid #475569' }}>
                         {translations.map((trans, index) => (
-                            <div key={trans.language} className="bg-slate-700/30 border border-slate-600 rounded p-4">
-                                <h3 className="font-semibold text-green-400 mb-4">
-                                    {LANGUAGES.find(l => l.code === trans.language)?.name}
-                                </h3>
+                            <div
+                                key={trans.language}
+                                style={{
+                                    minWidth: '250px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '1rem',
+                                    padding: '1rem',
+                                    backgroundColor: '#334155',
+                                    border: '1px solid #475569',
+                                    borderRadius: '0.5rem'
+                                }}
+                            >
+                                {/* Language Header */}
+                                <div style={{ textAlign: 'center', paddingBottom: '0.75rem', borderBottom: '2px solid #06b6d4' }}>
+                                    <h3 style={{ fontWeight: 'bold', fontSize: '1.125rem', color: '#06b6d4' }}>
+                                        {LANGUAGES.find(l => l.code === trans.language)?.name}
+                                    </h3>
+                                </div>
 
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-300 mb-1">Offer Name</label>
-                                        <input
-                                            type="text"
-                                            value={trans.offer_name}
-                                            onChange={(e) => handleTranslationChange(index, 'offer_name', e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-green-500"
-                                            placeholder="Enter translated name"
-                                        />
-                                    </div>
+                                {/* Name Input */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</label>
+                                    <textarea
+                                        value={trans.offer_name}
+                                        onChange={(e) => handleTranslationChange(index, 'offer_name', e.target.value)}
+                                        style={{
+                                            padding: '0.5rem 0.75rem',
+                                            backgroundColor: '#475569',
+                                            border: '1px solid #64748b',
+                                            borderRadius: '0.375rem',
+                                            color: 'white',
+                                            fontSize: '0.875rem',
+                                            minHeight: '100px',
+                                            fontFamily: 'inherit',
+                                            resize: 'none',
+                                            flex: 1
+                                        }}
+                                        placeholder="Enter name..."
+                                    />
+                                </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-slate-300 mb-1">Description</label>
-                                        <textarea
-                                            value={trans.offer_description}
-                                            onChange={(e) => handleTranslationChange(index, 'offer_description', e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-green-500"
-                                            rows={2}
-                                            placeholder="Enter translated description"
-                                        />
-                                    </div>
+                                {/* Description Textarea */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</label>
+                                    <textarea
+                                        value={trans.offer_description}
+                                        onChange={(e) => handleTranslationChange(index, 'offer_description', e.target.value)}
+                                        style={{
+                                            padding: '0.5rem 0.75rem',
+                                            backgroundColor: '#475569',
+                                            border: '1px solid #64748b',
+                                            borderRadius: '0.375rem',
+                                            color: 'white',
+                                            fontSize: '0.875rem',
+                                            minHeight: '100px',
+                                            fontFamily: 'inherit',
+                                            resize: 'none',
+                                            flex: 1
+                                        }}
+                                        placeholder="Enter description..."
+                                    />
                                 </div>
                             </div>
                         ))}
@@ -150,7 +375,10 @@ export default function TranslationTeam() {
                     </button>
 
                     {message && (
-                        <div className="p-4 bg-slate-700 border border-slate-600 rounded text-center">
+                        <div className={`p-4 rounded text-center border ${message.includes('✅')
+                            ? 'bg-green-700/20 border-green-600 text-green-300'
+                            : 'bg-slate-700 border-slate-600 text-slate-300'
+                            }`}>
                             {message}
                         </div>
                     )}

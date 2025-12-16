@@ -1,0 +1,270 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    CAMPEON CRM PROJECT - QUICK START GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+PROJECT STRUCTURE:
+├── src/                          (React/Next.js frontend code)
+│   ├── app/
+│   │   └── admin/bonus-browser/  (Bonus Browser page)
+│   └── components/
+│       ├── AdminPanel.tsx        (Pricing tables manager)
+│       └── BonusBrowser.tsx      (Bonus search/browse)
+├── backend/                      (FastAPI backend)
+│   ├── main.py                   (FastAPI app entry point)
+│   ├── database/
+│   │   └── models.py             (Database models)
+│   ├── api/
+│   │   └── stable_config.py      (API endpoints)
+│   ├── casino_crm.db             (SQLite database)
+│   └── .env                      (Environment config)
+└── package.json                  (Frontend dependencies)
+
+═══════════════════════════════════════════════════════════════════════════════
+                            PREREQUISITES
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ Node.js installed (for frontend)
+✓ Python 3.13+ installed (for backend)
+✓ npm installed (comes with Node.js)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        TERMINAL SETUP (RECOMMENDED)
+═══════════════════════════════════════════════════════════════════════════════
+
+Open TWO PowerShell terminals:
+  - Terminal 1: For Frontend
+  - Terminal 2: For Backend
+
+═══════════════════════════════════════════════════════════════════════════════
+                         STEP 1: START FRONTEND
+═══════════════════════════════════════════════════════════════════════════════
+
+TERMINAL 1 - FRONTEND:
+
+cd "C:\Users\GiorgosKorifidis\Downloads\CAMPEON CRM PROJECT"
+
+npm install
+(Only needed first time or after package.json changes)
+
+npm run dev
+
+Expected Output:
+  ✓ Ready in XX.XXms
+  ▲ Next.js XX.X.X
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+Frontend will be available at: http://localhost:3000
+
+═══════════════════════════════════════════════════════════════════════════════
+                         STEP 2: START BACKEND
+═══════════════════════════════════════════════════════════════════════════════
+
+TERMINAL 2 - BACKEND:
+
+cd "C:\Users\GiorgosKorifidis\Downloads\CAMPEON CRM PROJECT\backend"
+
+C:\Users\GiorgosKorifidis\AppData\Local\Programs\Python\Python313\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+Expected Output:
+  INFO:     Uvicorn running on http://0.0.0.0:8000
+  INFO:     Application startup complete
+
+Backend will be available at: http://localhost:8000
+
+═══════════════════════════════════════════════════════════════════════════════
+                      STEP 3: ACCESS THE APPLICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Admin Panel (Pricing Tables):
+  → http://localhost:3000
+
+Bonus Browser (Search/Browse):
+  → http://localhost:3000/admin/bonus-browser
+
+API Documentation:
+  → http://localhost:8000/docs
+
+═══════════════════════════════════════════════════════════════════════════════
+                        FEATURES & ENDPOINTS
+═══════════════════════════════════════════════════════════════════════════════
+
+FRONTEND FEATURES:
+
+1. Admin Panel (http://localhost:3000)
+   - Select Provider (PRAGMATIC / BETSOFT)
+   - Manage pricing tables (Add/Remove)
+   - Edit 21 currencies per table
+   - Save/Load from database
+
+2. Bonus Browser (http://localhost:3000/admin/bonus-browser)
+   - Browse by Date (Year → Month → Day)
+   - Search by Bonus ID
+   - Translation Team: Fetch & Submit translations
+   - CRM Ops Team: Create & Fetch bonus JSON
+
+BACKEND ENDPOINTS:
+
+Stable Config (Pricing Tables):
+  POST   /api/stable-config              - Save config
+  GET    /api/stable-config/{provider}   - Retrieve config
+  GET    /api/stable-config              - List all configs
+
+Bonus Templates:
+  GET    /api/bonus-templates/months/{year}
+  GET    /api/bonus-templates/dates/{year}/{month}
+  GET    /api/bonus-templates/by-date/{year}/{month}/{day}
+  GET    /api/bonus-templates/{id}
+  GET    /api/bonus-templates/search?id={id}
+
+═══════════════════════════════════════════════════════════════════════════════
+                        DATABASE INFORMATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Database Type: SQLite
+Location: C:\Users\GiorgosKorifidis\Downloads\CAMPEON CRM PROJECT\backend\casino_crm.db
+
+Tables:
+  - stable_configs      (Provider pricing configurations)
+  - bonus_templates     (Bonus data with timestamps)
+  - bonus_translations  (Translation data by language)
+  - currency_references (Currency mappings)
+
+Environment Variable:
+  DATABASE_URL=sqlite:///./casino_crm.db
+  (Located in: backend/.env)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+PORT ALREADY IN USE:
+
+  Frontend (3000):
+    taskkill /F /IM node.exe
+    Then restart with: npm run dev
+
+  Backend (8000):
+    Get-Process -Name pythonw | Stop-Process -Force
+    Or find by port: netstat -ano | findstr :8000
+    Then restart backend
+
+FRONTEND WON'T START:
+
+  Delete node_modules:
+    rm -r node_modules package-lock.json
+    npm install
+    npm run dev
+
+BACKEND WON'T START:
+
+  Install missing packages:
+    C:\Users\GiorgosKorifidis\AppData\Local\Programs\Python\Python313\python.exe -m pip install uvicorn fastapi sqlalchemy pydantic python-dotenv
+
+  Check .env file exists:
+    backend/.env
+
+DATABASE ERRORS:
+
+  Reset database:
+    Delete: backend/casino_crm.db
+    Restart backend (will recreate database)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        QUICK REFERENCE COMMANDS
+═══════════════════════════════════════════════════════════════════════════════
+
+FRONTEND:
+  Start:      npm run dev
+  Build:      npm run build
+  Stop:       Ctrl+C
+
+BACKEND:
+  Start:      C:\Users\GiorgosKorifidis\AppData\Local\Programs\Python\Python313\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+  Stop:       Ctrl+C
+  Test API:   Open http://localhost:8000/docs
+
+═══════════════════════════════════════════════════════════════════════════════
+                        DEVELOPMENT WORKFLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ALWAYS keep both terminals open and running
+2. Frontend auto-reloads on file changes (npm run dev)
+3. Backend auto-reloads on file changes (--reload flag)
+4. Changes appear immediately without restart
+5. Check browser console (F12) for frontend errors
+6. Check backend terminal for API errors
+
+═══════════════════════════════════════════════════════════════════════════════
+                     GIT - PUSH CHANGES TO REPOSITORY
+═══════════════════════════════════════════════════════════════════════════════
+
+To push your changes to Git:
+
+STEP 1: Check what files changed
+  git status
+
+STEP 2: Stage all changes (or specific files)
+  git add .
+  (Or: git add <filename> for individual files)
+
+STEP 3: Commit with a meaningful message
+  git commit -m "Your message here"
+  
+  Example messages:
+    git commit -m "feat: Add Bonus Browser UI with team actions"
+    git commit -m "fix: Update database config to SQLite"
+    git commit -m "feat: Add translation endpoints"
+    git commit -m "docs: Update project documentation"
+
+STEP 4: Push to remote repository
+  git push origin main
+  
+  (Replace 'main' with your branch name if different)
+
+STEP 5: Verify push was successful
+  - Check GitHub/GitLab for new commits
+  - Confirm all files appear in remote repository
+
+═══════════════════════════════════════════════════════════════════════════════
+                    COMMON GIT WORKFLOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+QUICK PUSH (All changes):
+  git add .
+  git commit -m "Update: [describe changes]"
+  git push origin main
+
+VIEW GIT LOG:
+  git log --oneline -10    (Show last 10 commits)
+  git log --graph --oneline --all (Show branch history)
+
+UNDO LAST COMMIT (Before push):
+  git reset HEAD~1         (Keep changes)
+  git reset --hard HEAD~1  (Discard changes)
+
+PULL LATEST CHANGES:
+  git pull origin main
+
+CHECK DIFFERENCES:
+  git diff                 (Unstaged changes)
+  git diff --staged        (Staged changes)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CONTACT & HELP
+═══════════════════════════════════════════════════════════════════════════════
+
+For issues:
+  1. Check the terminal output (red errors)
+  2. Check browser console (F12 → Console tab)
+  3. Check API documentation at http://localhost:8000/docs
+  4. Verify both terminals are still running
+
+GIT ISSUES:
+  - "Permission denied" → Check SSH key setup
+  - "remote rejected" → Ensure you have push access
+  - "merge conflict" → Manually resolve conflicts in files
+
+═══════════════════════════════════════════════════════════════════════════════
+                    READY TO GO! HAPPY CODING! 🚀
+═══════════════════════════════════════════════════════════════════════════════

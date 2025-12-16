@@ -94,7 +94,7 @@ export default function AdminPanel() {
         };
 
         fetchConfig();
-    }, [selectedProvider, defaultTable]);
+    }, [selectedProvider]);
 
     const handleCurrencyChange = (field: string, tableId: string, currency: string, value: number) => {
         setConfig(prev => ({

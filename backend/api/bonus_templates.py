@@ -105,6 +105,36 @@ def update_bonus_template(template_id: str, template_update: BonusTemplateCreate
     return template
 
 
+@router.get("/bonus-templates/dates/{year}/{month}", response_model=List[BonusTemplateResponse])
+def get_bonuses_by_month(year: int, month: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+    """Get bonus templates created in a specific month with pagination"""
+    from sqlalchemy import extract, desc
+
+    print(
+        f"[DEBUG] Fetching bonuses for {year}-{month}, skip={skip}, limit={limit}")
+
+    templates = db.query(BonusTemplate).filter(
+        extract('year', BonusTemplate.created_at) == year,
+        extract('month', BonusTemplate.created_at) == month
+    ).order_by(desc(BonusTemplate.created_at)).offset(skip).limit(limit).all()
+
+    print(f"[DEBUG] Found {len(templates)} bonuses")
+    return templates
+
+
+@router.get("/bonus-templates/search")
+def search_bonus_template(id: str, db: Session = Depends(get_db)):
+    """Search for a bonus template by ID"""
+    template = db.query(BonusTemplate).filter(
+        BonusTemplate.id == id).first()
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template '{id}' not found"
+        )
+    return template
+
+
 @router.delete("/bonus-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_bonus_template(template_id: str, db: Session = Depends(get_db)):
     """Delete a bonus template"""
@@ -125,7 +155,7 @@ def delete_bonus_template(template_id: str, db: Session = Depends(get_db)):
 
 @router.post("/bonus-templates/{template_id}/translations", status_code=status.HTTP_201_CREATED)
 def add_translation(template_id: str, translation: BonusTranslationCreate, db: Session = Depends(get_db)):
-    """Add a translation for a bonus template"""
+    """Add a translation for a bonus template - updates if exists"""
 
     # Check if template exists
     template = db.query(BonusTemplate).filter(
@@ -136,27 +166,55 @@ def add_translation(template_id: str, translation: BonusTranslationCreate, db: S
             detail=f"Template '{template_id}' not found"
         )
 
-    # Create translation
-    db_translation = BonusTranslation(
-        template_id=template_id,
-        language=translation.language,
-        currency=translation.currency,
-        name=translation.name,
-        description=translation.description,
-    )
+    print(
+        f"[DEBUG] Saving translation for {template_id} - Language: {translation.language}")
+    print(
+        f"[DEBUG] Name: {translation.name}, Description: {translation.description}")
 
-    db.add(db_translation)
-    db.commit()
-    db.refresh(db_translation)
-    return db_translation
+    # Check if translation already exists for this language
+    existing_translation = db.query(BonusTranslation).filter(
+        BonusTranslation.template_id == template_id,
+        BonusTranslation.language == translation.language
+    ).first()
+
+    if existing_translation:
+        # Update existing translation
+        print(
+            f"[DEBUG] Updating existing translation for {translation.language}")
+        existing_translation.name = translation.name
+        existing_translation.description = translation.description
+        existing_translation.currency = translation.currency
+        db.commit()
+        db.refresh(existing_translation)
+        print(f"[DEBUG] Updated translation: {existing_translation.name}")
+        return existing_translation
+    else:
+        # Create new translation
+        print(f"[DEBUG] Creating new translation for {translation.language}")
+        db_translation = BonusTranslation(
+            template_id=template_id,
+            language=translation.language,
+            currency=translation.currency,
+            name=translation.name,
+            description=translation.description,
+        )
+
+        db.add(db_translation)
+        db.commit()
+        db.refresh(db_translation)
+        print(f"[DEBUG] Created translation: {db_translation.name}")
+        return db_translation
 
 
-@router.get("/bonus-templates/{template_id}/translations", response_model=List[dict])
+@router.get("/bonus-templates/{template_id}/translations", response_model=List[BonusTranslationResponse])
 def get_translations(template_id: str, db: Session = Depends(get_db)):
     """Get all translations for a bonus template"""
+    print(f"[DEBUG] Getting translations for bonus: {template_id}")
+
     template = db.query(BonusTemplate).filter(
         BonusTemplate.id == template_id).first()
     if not template:
+        print(f"[DEBUG] Template {template_id} not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Template '{template_id}' not found"
@@ -164,6 +222,11 @@ def get_translations(template_id: str, db: Session = Depends(get_db)):
 
     translations = db.query(BonusTranslation).filter(
         BonusTranslation.template_id == template_id).all()
+
+    print(f"[DEBUG] Found {len(translations)} translations")
+    for t in translations:
+        print(f"[DEBUG]   - {t.language}: {t.name}")
+
     return translations
 
 
