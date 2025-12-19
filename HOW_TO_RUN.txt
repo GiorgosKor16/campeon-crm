@@ -180,6 +180,7 @@ FRONTEND:
   Stop:       Ctrl+C
 
 BACKEND:
+  CD:         cd "C:\Users\GiorgosKorifidis\Downloads\CAMPEON CRM PROJECT\backend"
   Start:      C:\Users\GiorgosKorifidis\AppData\Local\Programs\Python\Python313\python.exe -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
   Stop:       Ctrl+C
   Test API:   Open http://localhost:8000/docs

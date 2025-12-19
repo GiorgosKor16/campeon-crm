@@ -290,7 +290,7 @@ export default function AdminPanel() {
                                 <div className="text-2xl mb-2">{provider === 'PRAGMATIC' ? '🎰' : '🎲'}</div>
                                 <div className="font-semibold">{provider}</div>
                                 <div className="text-xs mt-1">
-                                    {selectedProvider === provider ? '✓ Active' : 'Select'}
+                                    {selectedProvider === provider ? '✓ Selected' : 'Select'}
                                 </div>
                             </button>
                         ))}

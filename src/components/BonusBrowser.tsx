@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import React from 'react';
+import axios from 'axios';
 
 interface BonusItem {
     id: string;
@@ -64,15 +65,23 @@ export default function BonusBrowser() {
         setLoading(true);
         setMessage('');
         try {
-            // TODO: Replace with actual API call
-            // const response = await axios.get(`/api/bonus-templates/by-date/${selectedYear}/${selectedMonth}/${selectedDay}`);
-            // setBonuses(response.data);
+            const response = await axios.get(`/api/bonus-templates/dates/${selectedYear}/${selectedMonth}`);
+            // Filter by day on frontend since backend returns all for month
+            const bonusesForDay = response.data.filter((bonus: any) => {
+                const bonusDate = new Date(bonus.created_at);
+                return bonusDate.getDate() === selectedDay;
+            });
 
-            // For now, show placeholder
-            setMessage(`📅 Loading bonuses for ${currentMonth?.name} ${selectedDay}, ${selectedYear}...`);
-            setBonuses([]);
+            if (bonusesForDay.length === 0) {
+                setMessage(`📭 No bonuses found for ${currentMonth?.name} ${selectedDay}, ${selectedYear}`);
+                setBonuses([]);
+            } else {
+                setBonuses(bonusesForDay);
+                setMessage(`✅ Found ${bonusesForDay.length} bonus(es)`);
+            }
         } catch (error: any) {
-            setMessage(`❌ Error: ${error.message}`);
+            setMessage(`❌ Error: ${error.response?.data?.detail || error.message}`);
+            setBonuses([]);
         } finally {
             setLoading(false);
         }
@@ -87,15 +96,16 @@ export default function BonusBrowser() {
         setLoading(true);
         setMessage('');
         try {
-            // TODO: Replace with actual API call
-            // const response = await axios.get(`/api/bonus-templates/${searchId}`);
-            // setBonuses([response.data]);
-
-            setMessage(`🔍 Searching for bonus: ${searchId}...`);
-            setBonuses([]);
-            setSelectedBonusId(null);
+            const response = await axios.get(`/api/bonus-templates/search`, {
+                params: { id: searchId }
+            });
+            setBonuses([response.data]);
+            setSelectedBonusId(response.data.id);
+            setMessage(`✅ Found bonus: ${searchId}`);
         } catch (error: any) {
-            setMessage(`❌ Bonus not found: ${searchId}`);
+            const errorMsg = error.response?.data?.detail || error.message;
+            setMessage(`❌ Bonus not found: ${errorMsg}`);
+            setBonuses([]);
             setSelectedBonusId(null);
         } finally {
             setLoading(false);

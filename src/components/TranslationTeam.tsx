@@ -171,9 +171,14 @@ export default function TranslationTeam() {
         setMessage(''); // Clear previous messages
         try {
             let savedCount = 0;
-            // Save each translation individually
+            let deletedCount = 0;
+
+            // Process each translation individually
             for (const trans of translations) {
-                if (trans.offer_name || trans.offer_description) {
+                const hasContent = trans.offer_name || trans.offer_description;
+
+                if (hasContent) {
+                    // Save translation with content
                     console.log(`Saving translation for ${trans.language}:`, trans);
                     const response = await axios.post(
                         `http://localhost:8000/api/bonus-templates/${selectedBonusId}/translations`,
@@ -186,13 +191,31 @@ export default function TranslationTeam() {
                     );
                     console.log(`Saved ${trans.language}:`, response.data);
                     savedCount++;
+                } else {
+                    // Try to delete empty translation
+                    try {
+                        console.log(`Deleting empty translation for ${trans.language}`);
+                        await axios.delete(
+                            `http://localhost:8000/api/bonus-templates/${selectedBonusId}/translations/${trans.language}`
+                        );
+                        console.log(`Deleted ${trans.language}`);
+                        deletedCount++;
+                    } catch (error) {
+                        // Ignore delete errors if translation doesn't exist
+                        console.log(`No translation to delete for ${trans.language}`);
+                    }
                 }
             }
 
-            if (savedCount === 0) {
-                setMessage('⚠️ No content to save. Please fill in at least one field.');
+            const totalChanges = savedCount + deletedCount;
+            if (totalChanges === 0) {
+                setMessage('⚠️ No changes made.');
             } else {
-                setMessage(`✅ Saved ${savedCount} translation(s) successfully!`);
+                let changeMsg = '';
+                if (savedCount > 0) changeMsg += `Saved ${savedCount}`;
+                if (deletedCount > 0) changeMsg += `${savedCount > 0 ? ', ' : ''}Deleted ${deletedCount}`;
+                setMessage(`✅ ${changeMsg} translation(s) successfully!`);
+
                 // Wait a moment then reload the translations to confirm they were saved
                 setTimeout(async () => {
                     await handleSelectBonus(selectedBonusId);

@@ -9,7 +9,7 @@ from datetime import datetime
 
 from database.database import get_db
 from database.models import BonusTemplate, BonusTranslation
-from api.schemas import BonusTemplateCreate, BonusTemplateResponse, BonusTranslationCreate, BonusJSONOutput
+from api.schemas import BonusTemplateCreate, BonusTemplateResponse, BonusTranslationCreate, BonusTranslationResponse, BonusJSONOutput
 from services.json_generator import generate_bonus_json_with_currencies
 
 router = APIRouter()
@@ -71,6 +71,36 @@ def list_bonus_templates(skip: int = 0, limit: int = 100, db: Session = Depends(
     return templates
 
 
+@router.get("/bonus-templates/search")
+def search_bonus_template(id: str, db: Session = Depends(get_db)):
+    """Search for a bonus template by ID"""
+    template = db.query(BonusTemplate).filter(
+        BonusTemplate.id == id).first()
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template '{id}' not found"
+        )
+    return template
+
+
+@router.get("/bonus-templates/dates/{year}/{month}", response_model=List[BonusTemplateResponse])
+def get_bonuses_by_month(year: int, month: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
+    """Get bonus templates created in a specific month with pagination"""
+    from sqlalchemy import extract, desc
+
+    print(
+        f"[DEBUG] Fetching bonuses for {year}-{month}, skip={skip}, limit={limit}")
+
+    templates = db.query(BonusTemplate).filter(
+        extract('year', BonusTemplate.created_at) == year,
+        extract('month', BonusTemplate.created_at) == month
+    ).order_by(desc(BonusTemplate.created_at)).offset(skip).limit(limit).all()
+
+    print(f"[DEBUG] Found {len(templates)} bonuses")
+    return templates
+
+
 @router.get("/bonus-templates/{template_id}", response_model=BonusTemplateResponse)
 def get_bonus_template(template_id: str, db: Session = Depends(get_db)):
     """Get a specific bonus template"""
@@ -102,36 +132,6 @@ def update_bonus_template(template_id: str, template_update: BonusTemplateCreate
     template.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(template)
-    return template
-
-
-@router.get("/bonus-templates/dates/{year}/{month}", response_model=List[BonusTemplateResponse])
-def get_bonuses_by_month(year: int, month: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    """Get bonus templates created in a specific month with pagination"""
-    from sqlalchemy import extract, desc
-
-    print(
-        f"[DEBUG] Fetching bonuses for {year}-{month}, skip={skip}, limit={limit}")
-
-    templates = db.query(BonusTemplate).filter(
-        extract('year', BonusTemplate.created_at) == year,
-        extract('month', BonusTemplate.created_at) == month
-    ).order_by(desc(BonusTemplate.created_at)).offset(skip).limit(limit).all()
-
-    print(f"[DEBUG] Found {len(templates)} bonuses")
-    return templates
-
-
-@router.get("/bonus-templates/search")
-def search_bonus_template(id: str, db: Session = Depends(get_db)):
-    """Search for a bonus template by ID"""
-    template = db.query(BonusTemplate).filter(
-        BonusTemplate.id == id).first()
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Template '{id}' not found"
-        )
     return template
 
 
@@ -228,6 +228,28 @@ def get_translations(template_id: str, db: Session = Depends(get_db)):
         print(f"[DEBUG]   - {t.language}: {t.name}")
 
     return translations
+
+
+@router.delete("/bonus-templates/{template_id}/translations/{language}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_translation(template_id: str, language: str, db: Session = Depends(get_db)):
+    """Delete a translation for a bonus template"""
+    print(
+        f"[DEBUG] Deleting translation for {template_id} - Language: {language}")
+
+    # Find and delete the translation
+    translation = db.query(BonusTranslation).filter(
+        BonusTranslation.template_id == template_id,
+        BonusTranslation.language == language
+    ).first()
+
+    if translation:
+        db.delete(translation)
+        db.commit()
+        print(f"[DEBUG] Deleted translation for {language}")
+    else:
+        print(f"[DEBUG] Translation for {language} not found")
+
+    return None
 
 
 # ============= JSON GENERATION =============
