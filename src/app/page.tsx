@@ -22,39 +22,39 @@ export default function Home() {
                 </header>
 
                 {/* Tab Navigation */}
-                <div className="flex gap-2 mb-8 overflow-x-auto pb-2 border-b border-slate-700">
+                <div className="flex gap-3 mb-10 overflow-x-auto pb-3 border-b border-slate-600 flex-wrap">
                     <button
                         onClick={() => setActiveTab('admin')}
-                        className={`px-6 py-3 font-semibold transition-all duration-200 whitespace-nowrap ${activeTab === 'admin'
-                            ? 'text-red-400 border-b-3 border-red-400'
-                            : 'text-slate-400 hover:text-slate-300 border-b-3 border-transparent hover:border-slate-600'
+                        className={`px-8 py-3 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shadow-md ${activeTab === 'admin'
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg shadow-red-500/50 scale-105'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white hover:shadow-lg hover:scale-105'
                             }`}
                     >
                         ⚙️ Admin Setup
                     </button>
                     <button
                         onClick={() => setActiveTab('casino')}
-                        className={`px-6 py-3 font-semibold transition-all duration-200 whitespace-nowrap ${activeTab === 'casino'
-                            ? 'text-blue-400 border-b-3 border-blue-400'
-                            : 'text-slate-400 hover:text-slate-300 border-b-3 border-transparent hover:border-slate-600'
+                        className={`px-8 py-3 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shadow-md ${activeTab === 'casino'
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/50 scale-105'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white hover:shadow-lg hover:scale-105'
                             }`}
                     >
                         🎰 Create Bonus
                     </button>
                     <button
                         onClick={() => setActiveTab('translation')}
-                        className={`px-6 py-3 font-semibold transition-all duration-200 whitespace-nowrap ${activeTab === 'translation'
-                            ? 'text-green-400 border-b-3 border-green-400'
-                            : 'text-slate-400 hover:text-slate-300 border-b-3 border-transparent hover:border-slate-600'
+                        className={`px-8 py-3 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shadow-md ${activeTab === 'translation'
+                            ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/50 scale-105'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white hover:shadow-lg hover:scale-105'
                             }`}
                     >
                         🌐 Translation Team
                     </button>
                     <button
                         onClick={() => setActiveTab('optimization')}
-                        className={`px-6 py-3 font-semibold transition-all duration-200 whitespace-nowrap ${activeTab === 'optimization'
-                            ? 'text-purple-400 border-b-3 border-purple-400'
-                            : 'text-slate-400 hover:text-slate-300 border-b-3 border-transparent hover:border-slate-600'
+                        className={`px-8 py-3 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap shadow-md ${activeTab === 'optimization'
+                            ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/50 scale-105'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white hover:shadow-lg hover:scale-105'
                             }`}
                     >
                         📊 Optimization Team
