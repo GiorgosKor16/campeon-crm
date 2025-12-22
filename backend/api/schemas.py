@@ -35,10 +35,10 @@ class BonusTemplateCreate(BaseModel):
     """Schema for creating a new bonus template"""
     id: str  # e.g., "Black Friday: Casino Reload 200% up to €300 21.11.25"
 
-    # Schedule
+    # Schedule (optional - if not provided, bonus has no schedule)
     schedule_type: str = "period"
-    schedule_from: str
-    schedule_to: str
+    schedule_from: Optional[str] = None
+    schedule_to: Optional[str] = None
 
     # Trigger
     # {"*": "default", "en": "...", "de": "...", ...}

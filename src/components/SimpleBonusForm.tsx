@@ -52,11 +52,9 @@ export default function SimpleBonusForm() {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await axios.post(API_ENDPOINTS.BONUS_TEMPLATES, {
+            // Build payload, excluding empty schedule fields
+            const payload: any = {
                 id: formData.id,
-                schedule_type: formData.schedule_type,
-                schedule_from: formData.schedule_from,
-                schedule_to: formData.schedule_to,
                 trigger_name: { '*': `${formData.provider} Bonus` },
                 trigger_description: { '*': `${formData.provider} ${formData.bonus_type} bonus` },
                 trigger_type: formData.trigger_type,
@@ -76,7 +74,16 @@ export default function SimpleBonusForm() {
                 provider: formData.provider,
                 brand: formData.provider,
                 bonus_type: formData.bonus_type,
-            });
+            };
+
+            // Only add schedule fields if both start and end dates are provided
+            if (formData.schedule_from && formData.schedule_to) {
+                payload.schedule_type = formData.schedule_type;
+                payload.schedule_from = formData.schedule_from;
+                payload.schedule_to = formData.schedule_to;
+            }
+
+            const response = await axios.post(API_ENDPOINTS.BONUS_TEMPLATES, payload);
             setMessage(`✅ Bonus created! ID: ${response.data.id}`);
             setFormData({
                 id: '',
@@ -203,24 +210,22 @@ export default function SimpleBonusForm() {
                                 </select>
                             </div>
                             <div>
-                                <label className="label-text">Start Date</label>
+                                <label className="label-text">Start Date (Optional)</label>
                                 <input
                                     type="datetime-local"
                                     name="schedule_from"
                                     value={formData.schedule_from}
                                     onChange={handleChange}
-                                    required
                                     className="input-field"
                                 />
                             </div>
                             <div>
-                                <label className="label-text">End Date</label>
+                                <label className="label-text">End Date (Optional)</label>
                                 <input
                                     type="datetime-local"
                                     name="schedule_to"
                                     value={formData.schedule_to}
                                     onChange={handleChange}
-                                    required
                                     className="input-field"
                                 />
                             </div>
