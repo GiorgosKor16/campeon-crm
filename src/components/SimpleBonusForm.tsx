@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import React from 'react';
 import { API_ENDPOINTS } from '@/lib/api-config';
+import BonusWizard from '@/components/BonusWizard';
 
 interface BonusFormData {
     id: string;
@@ -36,6 +37,7 @@ export default function SimpleBonusForm() {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [showWizard, setShowWizard] = useState(true);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -99,171 +101,192 @@ export default function SimpleBonusForm() {
 
     return (
         <div className="space-y-6">
-            <div className="card bg-gradient-to-r from-blue-950/50 to-slate-800 border-blue-700/50">
-                <h2 className="text-2xl font-bold text-blue-300 mb-2">🎰 Create Bonus Template</h2>
-                <p className="text-slate-400 text-sm">Quick form with pre-configured values. Go to Admin Panel to customize stable values.</p>
+            {/* New Bonus Builder - Always Visible */}
+            <div>
+                <h2 className="text-2xl font-bold text-blue-300 mb-4">✨ Bonus Builder (Auto-Generate ID)</h2>
+                <BonusWizard
+                    inline={true}
+                    onBonusCreated={(bonusData) => {
+                        console.log('Bonus created:', bonusData);
+                        // Auto-fill the classic form with the generated ID
+                        setFormData(prev => ({
+                            ...prev,
+                            id: bonusData.id
+                        }));
+                        setMessage(`✅ Bonus ID "${bonusData.id}" generated! It's been auto-filled in the form below.`);
+                        setTimeout(() => setMessage(''), 4000);
+                    }}
+                />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Row 1: Name & Provider */}
-                <div className="card">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="label-text">Bonus Name</label>
-                            <input
-                                type="text"
-                                name="id"
-                                value={formData.id}
-                                onChange={handleChange}
-                                required
-                                className="input-field"
-                                placeholder="e.g., Black Friday Reload"
-                            />
-                        </div>
-                        <div>
-                            <label className="label-text">Provider</label>
-                            <select
-                                name="provider"
-                                value={formData.provider}
-                                onChange={handleChange}
-                                className="input-field"
-                            >
-                                <option value="PRAGMATIC">Pragmatic</option>
-                                <option value="BETSOFT">Betsoft</option>
-                            </select>
+            {/* Divider */}
+            <div className="border-t-2 border-gray-700 my-8"></div>
+
+            {/* Classic Casino Bonus Form - Always Visible */}
+            <div>
+                <h2 className="text-2xl font-bold text-blue-300 mb-4">🎰 Classic Casino Bonus Form</h2>
+                <p className="text-sm text-gray-400 mb-4">💡 The Bonus ID from the builder above will auto-fill here. Adjust other settings and submit to complete creation.</p>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Row 1: Name & Provider */}
+                    <div className="card">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="label-text">Bonus Name (Auto-filled from Builder)</label>
+                                <input
+                                    type="text"
+                                    name="id"
+                                    value={formData.id}
+                                    onChange={handleChange}
+                                    required
+                                    className="input-field bg-gray-700"
+                                    placeholder="Auto-generated from Bonus Builder above"
+                                />
+                            </div>
+                            <div>
+                                <label className="label-text">Provider</label>
+                                <select
+                                    name="provider"
+                                    value={formData.provider}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                >
+                                    <option value="PRAGMATIC">Pragmatic</option>
+                                    <option value="BETSOFT">Betsoft</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Row 2: Cost & Percentage */}
-                <div className="card">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="label-text">Cost (EUR)</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                name="cost_eur"
-                                value={formData.cost_eur}
-                                onChange={handleChange}
-                                className="input-field"
-                            />
-                            <p className="text-xs text-slate-400 mt-2">💡 Other currencies auto-filled from stable values</p>
-                        </div>
-                        <div>
-                            <label className="label-text">Bonus %</label>
-                            <input
-                                type="number"
-                                name="percentage"
-                                value={formData.percentage}
-                                onChange={handleChange}
-                                className="input-field"
-                                placeholder="200"
-                            />
+                    {/* Row 2: Cost & Percentage */}
+                    <div className="card">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="label-text">Cost (EUR)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    name="cost_eur"
+                                    value={formData.cost_eur}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                />
+                                <p className="text-xs text-slate-400 mt-2">💡 Other currencies auto-filled from stable values</p>
+                            </div>
+                            <div>
+                                <label className="label-text">Bonus %</label>
+                                <input
+                                    type="number"
+                                    name="percentage"
+                                    value={formData.percentage}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                    placeholder="200"
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Row 3: Schedule */}
-                <div className="card">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="label-text">Schedule Type</label>
-                            <select
-                                name="schedule_type"
-                                value={formData.schedule_type}
-                                onChange={handleChange}
-                                className="input-field"
-                            >
-                                <option value="period">Period</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="daily">Daily</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="label-text">Start Date</label>
-                            <input
-                                type="datetime-local"
-                                name="schedule_from"
-                                value={formData.schedule_from}
-                                onChange={handleChange}
-                                required
-                                className="input-field"
-                            />
-                        </div>
-                        <div>
-                            <label className="label-text">End Date</label>
-                            <input
-                                type="datetime-local"
-                                name="schedule_to"
-                                value={formData.schedule_to}
-                                onChange={handleChange}
-                                required
-                                className="input-field"
-                            />
+                    {/* Row 3: Schedule */}
+                    <div className="card">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label className="label-text">Schedule Type</label>
+                                <select
+                                    name="schedule_type"
+                                    value={formData.schedule_type}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                >
+                                    <option value="period">Period</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="daily">Daily</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="label-text">Start Date</label>
+                                <input
+                                    type="datetime-local"
+                                    name="schedule_from"
+                                    value={formData.schedule_from}
+                                    onChange={handleChange}
+                                    required
+                                    className="input-field"
+                                />
+                            </div>
+                            <div>
+                                <label className="label-text">End Date</label>
+                                <input
+                                    type="datetime-local"
+                                    name="schedule_to"
+                                    value={formData.schedule_to}
+                                    onChange={handleChange}
+                                    required
+                                    className="input-field"
+                                />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Row 4: Bonus Details */}
-                <div className="card">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="label-text">Wagering Multiplier</label>
-                            <input
-                                type="number"
-                                name="wagering_multiplier"
-                                value={formData.wagering_multiplier}
-                                onChange={handleChange}
-                                className="input-field"
-                                placeholder="15"
-                            />
-                        </div>
-                        <div>
-                            <label className="label-text">Bonus Type</label>
-                            <select
-                                name="bonus_type"
-                                value={formData.bonus_type}
-                                onChange={handleChange}
-                                className="input-field"
-                            >
-                                <option value="cash">Cash</option>
-                                <option value="bonus">Bonus Points</option>
-                                <option value="free_spins">Free Spins</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="label-text">Trigger Type</label>
-                            <select
-                                name="trigger_type"
-                                value={formData.trigger_type}
-                                onChange={handleChange}
-                                className="input-field"
-                            >
-                                <option value="reload">Reload</option>
-                                <option value="deposit">Deposit</option>
-                                <option value="first_deposit">First Deposit</option>
-                            </select>
+                    {/* Row 4: Bonus Details */}
+                    <div className="card">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label className="label-text">Wagering Multiplier</label>
+                                <input
+                                    type="number"
+                                    name="wagering_multiplier"
+                                    value={formData.wagering_multiplier}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                    placeholder="15"
+                                />
+                            </div>
+                            <div>
+                                <label className="label-text">Bonus Type</label>
+                                <select
+                                    name="bonus_type"
+                                    value={formData.bonus_type}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                >
+                                    <option value="cash">Cash</option>
+                                    <option value="bonus">Bonus Points</option>
+                                    <option value="free_spins">Free Spins</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="label-text">Trigger Type</label>
+                                <select
+                                    name="trigger_type"
+                                    value={formData.trigger_type}
+                                    onChange={handleChange}
+                                    className="input-field"
+                                >
+                                    <option value="reload">Reload</option>
+                                    <option value="deposit">Deposit</option>
+                                    <option value="first_deposit">First Deposit</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Message */}
-                {message && (
-                    <div className={`p-4 rounded-lg ${message.includes('✅') ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'}`}>
-                        {message}
-                    </div>
-                )}
+                    {/* Message */}
+                    {message && (
+                        <div className={`p-4 rounded-lg ${message.includes('✅') ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'}`}>
+                            {message}
+                        </div>
+                    )}
 
-                {/* Submit */}
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full button-primary py-3 text-lg font-semibold"
-                >
-                    {loading ? '⏳ Creating...' : '✅ Create Bonus Template'}
-                </button>
-            </form>
+                    {/* Submit */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full button-primary py-3 text-lg font-semibold"
+                    >
+                        {loading ? '⏳ Creating...' : '✅ Create Bonus Template'}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 }

@@ -6,27 +6,18 @@ import { BonusType, BONUS_TYPES, generateBonusId } from '@/lib/bonusConfig';
 interface BonusWizardProps {
     onBonusCreated?: (bonusData: any) => void;
     onCancel?: () => void;
+    inline?: boolean;
 }
 
-export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardProps) {
-    const [step, setStep] = useState<'type' | 'config'>('type');
+export default function BonusWizard({ onBonusCreated, onCancel, inline = false }: BonusWizardProps) {
     const [selectedType, setSelectedType] = useState<BonusType | null>(null);
     const [bonusData, setBonusData] = useState<Record<string, any>>({});
     const [generatedId, setGeneratedId] = useState<string>('');
 
-    const handleTypeSelect = (type: BonusType) => {
+    const handleTypeChange = (type: BonusType) => {
         setSelectedType(type);
         setBonusData({});
-        setStep('config');
-    };
-
-    const handleBack = () => {
-        if (step === 'config') {
-            setStep('type');
-            setSelectedType(null);
-            setBonusData({});
-            setGeneratedId('');
-        }
+        setGeneratedId('');
     };
 
     const handleInputChange = (field: string, value: any) => {
@@ -70,69 +61,48 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
         onBonusCreated?.(finalBonus);
     };
 
-    // Step 1: Type Selection
-    if (step === 'type') {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-8">
-                <div className="max-w-4xl mx-auto">
-                    <h1 className="text-3xl font-bold text-white mb-2">Bonus Wizard</h1>
-                    <p className="text-gray-400 mb-8">Step 1: Select Bonus Type</p>
+    return (
+        <div className={`${inline ? 'bg-gray-900 rounded-lg p-6' : 'min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-8'}`}>
+            <div className="max-w-2xl mx-auto">
+                <h2 className="text-3xl font-bold text-white mb-6">✨ Bonus Builder</h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Object.entries(BONUS_TYPES).map(([key, config]) => (
-                            <button
-                                key={key}
-                                onClick={() => handleTypeSelect(config.type)}
-                                className="p-6 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-blue-500 rounded-lg transition text-left"
-                            >
-                                <div className="text-lg font-semibold text-white">{config.label}</div>
-                                <div className="text-sm text-gray-400 mt-2">{config.description}</div>
-                            </button>
-                        ))}
+                <div className="bg-gray-800 p-8 rounded-lg border border-gray-700 space-y-6">
+                    {/* Bonus Type Dropdown */}
+                    <div>
+                        <label className="block text-sm font-medium text-white mb-3">Select Bonus Type *</label>
+                        <select
+                            value={selectedType || ''}
+                            onChange={(e) => handleTypeChange(e.target.value as BonusType)}
+                            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded text-white text-base focus:border-blue-500 focus:outline-none"
+                        >
+                            <option value="">-- Choose a bonus type --</option>
+                            {Object.entries(BONUS_TYPES).map(([_, config]) => (
+                                <option key={config.type} value={config.type}>
+                                    {config.label}
+                                </option>
+                            ))}
+                        </select>
+                        {selectedType && (
+                            <p className="text-sm text-gray-400 mt-2">{BONUS_TYPES[selectedType].description}</p>
+                        )}
                     </div>
 
-                    {onCancel && (
-                        <button
-                            onClick={onCancel}
-                            className="mt-8 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                        >
-                            Cancel
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
-    }
+                    {/* Conditional Fields */}
+                    {selectedType && (
+                        <div className="space-y-6">
+                            {/* Generated ID Display */}
+                            {generatedId && (
+                                <div className="p-4 bg-green-900 border border-green-700 rounded">
+                                    <div className="text-sm text-gray-300 mb-1">Generated Bonus ID:</div>
+                                    <div className="text-lg font-mono text-green-400 break-all">{generatedId}</div>
+                                </div>
+                            )}
 
-    // Step 2: Configuration
-    if (step === 'config' && selectedType) {
-        const typeConfig = BONUS_TYPES[selectedType];
-
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 p-8">
-                <div className="max-w-2xl mx-auto">
-                    <h1 className="text-3xl font-bold text-white mb-2">Bonus Wizard</h1>
-                    <p className="text-gray-400 mb-8">
-                        Step 2: Configure {typeConfig.label}
-                    </p>
-
-                    <div className="bg-gray-800 p-8 rounded-lg border border-gray-700">
-                        {/* Generated ID Display */}
-                        {generatedId && (
-                            <div className="mb-6 p-4 bg-green-900 border border-green-700 rounded">
-                                <div className="text-sm text-gray-300 mb-1">Generated ID:</div>
-                                <div className="text-lg font-mono text-green-400 break-all">{generatedId}</div>
-                            </div>
-                        )}
-
-                        {/* Type-Specific Fields */}
-                        <div className="space-y-4">
-                            {selectedType === 'DEPOSIT' || selectedType === 'RELOAD' ? (
-                                <>
+                            {/* DEPOSIT / RELOAD */}
+                            {(selectedType === 'DEPOSIT' || selectedType === 'RELOAD') && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Minimum Amount (€)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Minimum Amount (€) *</label>
                                         <input
                                             type="number"
                                             value={bonusData.minimumAmount || ''}
@@ -142,9 +112,7 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Percentage (%)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Percentage (%) *</label>
                                         <input
                                             type="number"
                                             value={bonusData.percentage || ''}
@@ -153,10 +121,8 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                             placeholder="e.g., 100"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Wagering Multiplier (x)
-                                        </label>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-white mb-2">Wagering Multiplier (x)</label>
                                         <input
                                             type="number"
                                             value={bonusData.wageringMultiplier || ''}
@@ -165,15 +131,14 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                             placeholder="e.g., 20"
                                         />
                                     </div>
-                                </>
-                            ) : null}
+                                </div>
+                            )}
 
-                            {selectedType === 'FSDROP' ? (
-                                <>
+                            {/* FSDROP */}
+                            {selectedType === 'FSDROP' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Spin Count
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Spin Count *</label>
                                         <input
                                             type="number"
                                             value={bonusData.spinCount || ''}
@@ -183,9 +148,7 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Wagering Multiplier (x)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Wagering Multiplier (x)</label>
                                         <input
                                             type="number"
                                             value={bonusData.wagering || ''}
@@ -194,15 +157,14 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                             placeholder="e.g., 5"
                                         />
                                     </div>
-                                </>
-                            ) : null}
+                                </div>
+                            )}
 
-                            {selectedType === 'WAGER' ? (
-                                <>
+                            {/* WAGER */}
+                            {selectedType === 'WAGER' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Wager Amount (€)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Wager Amount (€) *</label>
                                         <input
                                             type="number"
                                             value={bonusData.wagerAmount || ''}
@@ -212,9 +174,7 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Spin Count
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Spin Count *</label>
                                         <input
                                             type="number"
                                             value={bonusData.spinCount || ''}
@@ -223,10 +183,8 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                             placeholder="e.g., 500"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Wagering Multiplier (x)
-                                        </label>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-white mb-2">Wagering Multiplier (x)</label>
                                         <input
                                             type="number"
                                             value={bonusData.wagering || ''}
@@ -235,15 +193,14 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                             placeholder="e.g., 5"
                                         />
                                     </div>
-                                </>
-                            ) : null}
+                                </div>
+                            )}
 
-                            {selectedType === 'SEQ' ? (
-                                <>
+                            {/* SEQUENTIAL */}
+                            {selectedType === 'SEQ' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Stage Number
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Stage Number *</label>
                                         <input
                                             type="number"
                                             value={bonusData.stageNumber || ''}
@@ -253,9 +210,7 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Minimum Amount (€)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Minimum Amount (€) *</label>
                                         <input
                                             type="number"
                                             value={bonusData.minimumAmount || ''}
@@ -265,9 +220,7 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Percentage (%)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Percentage (%) *</label>
                                         <input
                                             type="number"
                                             value={bonusData.percentage || ''}
@@ -277,9 +230,7 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-white mb-2">
-                                            Wagering Multiplier (x)
-                                        </label>
+                                        <label className="block text-sm font-medium text-white mb-2">Wagering Multiplier (x)</label>
                                         <input
                                             type="number"
                                             value={bonusData.wageringMultiplier || ''}
@@ -288,14 +239,13 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                             placeholder="e.g., 20"
                                         />
                                     </div>
-                                </>
-                            ) : null}
+                                </div>
+                            )}
 
-                            {selectedType === 'COMBO' ? (
+                            {/* COMBO */}
+                            {selectedType === 'COMBO' && (
                                 <div>
-                                    <label className="block text-sm font-medium text-white mb-2">
-                                        Linked Bonus ID
-                                    </label>
+                                    <label className="block text-sm font-medium text-white mb-2">Linked Bonus ID *</label>
                                     <input
                                         type="text"
                                         value={bonusData.linkedBonusId || ''}
@@ -304,13 +254,12 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         placeholder="e.g., DEPOSIT_25_100_22.12.25"
                                     />
                                 </div>
-                            ) : null}
+                            )}
 
-                            {selectedType === 'CASHBACK' ? (
+                            {/* CASHBACK */}
+                            {selectedType === 'CASHBACK' && (
                                 <div>
-                                    <label className="block text-sm font-medium text-white mb-2">
-                                        Cashback Percentage (%)
-                                    </label>
+                                    <label className="block text-sm font-medium text-white mb-2">Cashback Percentage (%) *</label>
                                     <input
                                         type="number"
                                         value={bonusData.percentage || ''}
@@ -319,33 +268,43 @@ export default function BonusWizard({ onBonusCreated, onCancel }: BonusWizardPro
                                         placeholder="e.g., 10"
                                     />
                                 </div>
-                            ) : null}
-                        </div>
+                            )}
 
-                        {/* Action Buttons */}
-                        <div className="mt-8 flex gap-4">
-                            <button
-                                onClick={handleBack}
-                                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
-                            >
-                                Back
-                            </button>
-                            <button
-                                onClick={handleFinish}
-                                disabled={!generatedId}
-                                className={`px-6 py-2 rounded transition ${generatedId
-                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                    }`}
-                            >
-                                Create Bonus
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="flex gap-4 pt-4 border-t border-gray-700">
+                                {onCancel && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onCancel();
+                                        }}
+                                        className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleFinish();
+                                    }}
+                                    disabled={!generatedId}
+                                    className={`px-6 py-2 rounded transition ${generatedId
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                        }`}
+                                >
+                                    ✅ Create Bonus
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
-        );
-    }
-
-    return null;
+        </div>
+    );
 }

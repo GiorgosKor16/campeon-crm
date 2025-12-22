@@ -432,7 +432,7 @@ export default function BonusBrowser() {
                                 <button
                                     onClick={handleTranslationAction}
                                     disabled={loading}
-                                    className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
+                                    className="w-full px-4 py-2.5 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-700 text-white font-semibold rounded-lg transition-all disabled:cursor-not-allowed"
                                 >
                                     {loading ? '⏳ Processing...' : '✨ Execute Action'}
                                 </button>
