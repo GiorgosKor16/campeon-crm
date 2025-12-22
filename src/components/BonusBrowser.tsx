@@ -114,6 +114,27 @@ export default function BonusBrowser() {
         }
     };
 
+    const handleDeleteBonus = async (bonusId: string) => {
+        if (!window.confirm(`⚠️ Are you sure you want to delete bonus "${bonusId}"? This cannot be undone.`)) {
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await axios.delete(`/api/bonus-templates/${bonusId}`);
+            setMessage(`✅ Bonus "${bonusId}" deleted successfully`);
+            setBonuses(bonuses.filter(b => b.id !== bonusId));
+            if (selectedBonusId === bonusId) {
+                setSelectedBonusId(null);
+            }
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.detail || error.message;
+            setMessage(`❌ Error deleting bonus: ${errorMsg}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleTranslationAction = async () => {
         if (!selectedBonusId) {
             setMessage('❌ Please select a bonus first');
@@ -364,6 +385,16 @@ export default function BonusBrowser() {
                                             </button>
                                             <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-all">
                                                 ✏️ Edit
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteBonus(bonus.id);
+                                                }}
+                                                disabled={loading}
+                                                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-slate-700 text-white text-sm rounded-lg transition-all"
+                                            >
+                                                🗑️ Delete
                                             </button>
                                         </div>
                                     </div>
