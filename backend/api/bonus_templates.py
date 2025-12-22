@@ -87,14 +87,18 @@ def search_bonus_template(id: str, db: Session = Depends(get_db)):
 @router.get("/bonus-templates/dates/{year}/{month}", response_model=List[BonusTemplateResponse])
 def get_bonuses_by_month(year: int, month: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
     """Get bonus templates created in a specific month with pagination"""
-    from sqlalchemy import extract, desc
+    from sqlalchemy import desc, func
+    from datetime import datetime
 
     print(
         f"[DEBUG] Fetching bonuses for {year}-{month}, skip={skip}, limit={limit}")
 
+    # SQLite-compatible date filtering using strftime
+    date_pattern = f"{year:04d}-{month:02d}%"
+
     templates = db.query(BonusTemplate).filter(
-        extract('year', BonusTemplate.created_at) == year,
-        extract('month', BonusTemplate.created_at) == month
+        func.strftime(
+            '%Y-%m', BonusTemplate.created_at) == f"{year:04d}-{month:02d}"
     ).order_by(desc(BonusTemplate.created_at)).offset(skip).limit(limit).all()
 
     print(f"[DEBUG] Found {len(templates)} bonuses")
