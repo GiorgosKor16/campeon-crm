@@ -63,17 +63,17 @@ export default function BonusBrowser() {
         setMessage('');
         try {
             const response = await axios.get(`/api/bonus-templates/dates/${selectedYear}/${selectedMonth}`);
-            
+
             // Filter by day if a specific day is selected, otherwise show all for the month
             let bonusesForDisplay = response.data;
-            
+
             if (selectedDay && selectedDay !== 0) {
                 // Show bonuses for specific day
                 bonusesForDisplay = response.data.filter((bonus: any) => {
                     const bonusDate = new Date(bonus.created_at);
                     return bonusDate.getDate() === selectedDay;
                 });
-                
+
                 if (bonusesForDisplay.length === 0) {
                     setMessage(`📭 No bonuses found for ${currentMonth?.name} ${selectedDay}, ${selectedYear}`);
                 } else {
@@ -87,7 +87,7 @@ export default function BonusBrowser() {
                     setMessage(`✅ Found ${bonusesForDisplay.length} bonus(es) in ${currentMonth?.name} ${selectedYear}`);
                 }
             }
-            
+
             setBonuses(bonusesForDisplay);
         } catch (error: any) {
             setMessage(`❌ Error: ${error.response?.data?.detail || error.message}`);
