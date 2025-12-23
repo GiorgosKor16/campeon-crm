@@ -53,7 +53,7 @@ export default function DepositBonusForm() {
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [costTables, setCostTables] = useState<CurrencyTable[]>([]);
-    const [withdrawalValues, setWithdrawalValues] = useState<Record<string, number>>(
+    const [withdrawalValues, setWithdrawalValues] = useState<Record<string, number>>(() =>
         Object.fromEntries(CURRENCIES.map(c => [c, 100]))
     );
     const [loadingCosts, setLoadingCosts] = useState(false);
@@ -124,7 +124,7 @@ export default function DepositBonusForm() {
                             eurCostInput: value,
                             cost: matchingTable.values,
                             multipliers: { ...matchingTable.values },
-                            maximumWithdraw: withdrawalValues,
+                            maximumWithdraw: withdrawalValues || Object.fromEntries(CURRENCIES.map(c => [c, 100])),
                             maximumBets: maxBets
                         }));
                     } catch (error) {
@@ -134,7 +134,7 @@ export default function DepositBonusForm() {
                             eurCostInput: value,
                             cost: matchingTable.values,
                             multipliers: { ...matchingTable.values },
-                            maximumWithdraw: withdrawalValues
+                            maximumWithdraw: withdrawalValues || Object.fromEntries(CURRENCIES.map(c => [c, 100]))
                         }));
                     }
                 };
@@ -150,7 +150,7 @@ export default function DepositBonusForm() {
             const eurValue = parseFloat(value) || 100;
             // Update EUR value in the withdrawal values
             const updatedWithdrawalValues = {
-                ...withdrawalValues,
+                ...(withdrawalValues || Object.fromEntries(CURRENCIES.map(c => [c, 100]))),
                 EUR: eurValue
             };
             setFormData(prev => ({
