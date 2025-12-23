@@ -53,35 +53,49 @@ export default function DepositBonusForm() {
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [costTables, setCostTables] = useState<CurrencyTable[]>([]);
-    const [withdrawalValues, setWithdrawalValues] = useState<Record<string, number>>(() =>
+    const [adminMaxWithdraw, setAdminMaxWithdraw] = useState<Record<string, number>>(() =>
         Object.fromEntries(CURRENCIES.map(c => [c, 100]))
     );
     const [loadingCosts, setLoadingCosts] = useState(false);
 
-    // Fetch cost and withdrawal tables when provider changes
+    // Fetch admin config on mount and when provider changes
     useEffect(() => {
-        const fetchTables = async () => {
+        const fetchAdminConfig = async () => {
             setLoadingCosts(true);
             try {
                 const response = await axios.get(
-                    `${API_ENDPOINTS.BASE_URL}/api/stable-config/${formData.provider}`
+                    `${API_ENDPOINTS.BASE_URL}/api/stable-config/PRAGMATIC`
                 );
-                if (response.data?.cost) {
+
+                // Set cost tables
+                if (response.data?.cost && Array.isArray(response.data.cost)) {
                     setCostTables(response.data.cost);
                 }
-                // Maximum withdraw is a single table with all currencies
-                if (response.data?.maximum_withdraw && response.data.maximum_withdraw.values) {
-                    setWithdrawalValues(response.data.maximum_withdraw.values);
+
+                // Set admin maximum_withdraw values - handle array of tables
+                if (response.data?.maximum_withdraw && Array.isArray(response.data.maximum_withdraw)) {
+                    const withdrawTable = response.data.maximum_withdraw[0];
+                    if (withdrawTable?.values) {
+                        console.log('DEBUG: Got admin maximum_withdraw.values:', withdrawTable.values);
+                        setAdminMaxWithdraw(withdrawTable.values);
+
+                        // Also initialize formData with these values
+                        setFormData(prev => ({
+                            ...prev,
+                            maximumWithdraw: withdrawTable.values || prev.maximumWithdraw
+                        }));
+                    }
                 }
             } catch (error) {
-                console.log('Error fetching tables:', error);
+                console.log('Error fetching admin config:', error);
+                // Keep defaults if fetch fails
             } finally {
                 setLoadingCosts(false);
             }
         };
 
-        fetchTables();
-    }, [formData.provider]);
+        fetchAdminConfig();
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -92,54 +106,21 @@ export default function DepositBonusForm() {
             const eurValue = parseFloat(value);
             const matchingTable = costTables.find(t => Math.abs((t.values['EUR'] || 0) - eurValue) < 0.001);
             if (matchingTable) {
-                // Fetch admin config to get maximum bets data
-                const fetchAdminData = async () => {
-                    try {
-                        const response = await axios.get(
-                            `${API_ENDPOINTS.BASE_URL}/api/stable-config/${formData.provider}`
-                        );
-                        const adminConfig = response.data;
+                console.log('DEBUG: Cost matched, setting form data:', {
+                    eurCostInput: value,
+                    cost: matchingTable.values,
+                    multipliers: matchingTable.values,
+                    maximumWithdraw: adminMaxWithdraw
+                });
 
-                        // Build maximum bets from admin setup
-                        const maxBets: Record<string, number> = {};
-
-                        CURRENCIES.forEach(curr => {
-                            // Maximum Bets from admin setup
-                            if (adminConfig?.maximum_stake_to_wager) {
-                                const adminBets = adminConfig.maximum_stake_to_wager.find(
-                                    (item: any) => {
-                                        return item.currency === curr ||
-                                            item.code === curr ||
-                                            (item.name && item.name.includes(curr));
-                                    }
-                                );
-                                maxBets[curr] = adminBets?.value || adminBets?.cap || 0;
-                            } else {
-                                maxBets[curr] = 0;
-                            }
-                        });
-
-                        setFormData(prev => ({
-                            ...prev,
-                            eurCostInput: value,
-                            cost: matchingTable.values,
-                            multipliers: { ...matchingTable.values },
-                            maximumWithdraw: withdrawalValues || Object.fromEntries(CURRENCIES.map(c => [c, 100])),
-                            maximumBets: maxBets
-                        }));
-                    } catch (error) {
-                        console.log('Error fetching admin data:', error);
-                        setFormData(prev => ({
-                            ...prev,
-                            eurCostInput: value,
-                            cost: matchingTable.values,
-                            multipliers: { ...matchingTable.values },
-                            maximumWithdraw: withdrawalValues || Object.fromEntries(CURRENCIES.map(c => [c, 100]))
-                        }));
-                    }
-                };
-
-                fetchAdminData();
+                setFormData(prev => ({
+                    ...prev,
+                    eurCostInput: value,
+                    cost: matchingTable.values,
+                    multipliers: { ...matchingTable.values },
+                    maximumWithdraw: adminMaxWithdraw,
+                    maximumBets: prev.maximumBets
+                }));
                 setMessage(`✅ Cost matched: ${matchingTable.name}`);
                 setTimeout(() => setMessage(''), 2000);
             }
@@ -150,7 +131,7 @@ export default function DepositBonusForm() {
             const eurValue = parseFloat(value) || 100;
             // Update EUR value in the withdrawal values
             const updatedWithdrawalValues = {
-                ...(withdrawalValues || Object.fromEntries(CURRENCIES.map(c => [c, 100]))),
+                ...formData.maximumWithdraw,
                 EUR: eurValue
             };
             setFormData(prev => ({
@@ -208,6 +189,9 @@ export default function DepositBonusForm() {
                 CURRENCIES.map(c => [c, freeSpinsValue])
             );
 
+            console.log('DEBUG: formData.maximumWithdraw =', formData.maximumWithdraw);
+            console.log('DEBUG: formData.eurMaxWithdraw =', formData.eurMaxWithdraw);
+
             const payload: any = {
                 id: formData.id || `DEPOSIT_${Date.now()}`,
                 trigger: {
@@ -219,7 +203,7 @@ export default function DepositBonusForm() {
                     multiplier: formData.multipliers,
                     maximumBets: maximumBetsWithFreeSpin,
                     maximumWithdraw: Object.fromEntries(
-                        Object.entries(formData.maximumWithdraw).map(([curr, val]) => [
+                        Object.entries(formData.maximumWithdraw || {}).map(([curr, val]) => [
                             curr,
                             { cap: val }
                         ])
@@ -243,6 +227,8 @@ export default function DepositBonusForm() {
                 };
             }
 
+            console.log('DEBUG: Final payload =', JSON.stringify(payload, null, 2));
+
             const response = await axios.post(`${API_ENDPOINTS.BASE_URL}/api/bonus-templates/simple`, payload);
             setMessage(`✅ Deposit bonus "${response.data.id}" created successfully!`);
 
@@ -262,7 +248,7 @@ export default function DepositBonusForm() {
                 cost: Object.fromEntries(CURRENCIES.map(c => [c, 0])),
                 multipliers: Object.fromEntries(CURRENCIES.map(c => [c, 0])),
                 maximumBets: Object.fromEntries(CURRENCIES.map(c => [c, 0])),
-                maximumWithdraw: Object.fromEntries(CURRENCIES.map(c => [c, c === 'EUR' ? 100 : 100])),
+                maximumWithdraw: adminMaxWithdraw || Object.fromEntries(CURRENCIES.map(c => [c, 100])),
             });
 
             setTimeout(() => setMessage(''), 5000);

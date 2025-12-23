@@ -99,12 +99,17 @@ def create_bonus_template_simple(payload: Dict[str, Any], db: Session = Depends(
 
         # Extract just the cap values from maximumWithdraw if they exist
         max_withdraw = config.get("maximumWithdraw", {})
+        print(f"DEBUG POST: max_withdraw from payload = {max_withdraw}")
+        print(f"DEBUG POST: max_withdraw type = {type(max_withdraw)}")
+
         max_withdraw_flattened = {}
         for curr, val in max_withdraw.items():
             if isinstance(val, dict):
                 max_withdraw_flattened[curr] = val.get("cap", 0)
             else:
                 max_withdraw_flattened[curr] = val
+
+        print(f"DEBUG POST: max_withdraw_flattened = {max_withdraw_flattened}")
 
         # Build the FINAL JSON that will be stored - only include what was provided
         final_json = {
@@ -448,8 +453,13 @@ def generate_template_json(template_id: str, db: Session = Depends(get_db)):
     # Use stored template data if available, fallback to admin config
     maximum_withdraw_formatted = {}
 
+    print(f"DEBUG: template.maximum_withdraw = {template.maximum_withdraw}")
+    print(
+        f"DEBUG: template.maximum_withdraw type = {type(template.maximum_withdraw)}")
+
     if template.maximum_withdraw:
         stored_data = template.maximum_withdraw
+        print(f"DEBUG: Using stored data: {stored_data}")
         # If stored as flat dict/JSON, convert to nested format
         if isinstance(stored_data, dict):
             for curr, val in stored_data.items():
@@ -461,6 +471,7 @@ def generate_template_json(template_id: str, db: Session = Depends(get_db)):
                     maximum_withdraw_formatted[curr] = {"cap": val}
     # Fallback to admin config if stored data is empty
     elif admin_config and admin_config.maximum_withdraw:
+        print(f"DEBUG: Using admin config data")
         # Admin stores it as list of dicts with currency and cap
         for item in admin_config.maximum_withdraw:
             if isinstance(item, dict):
@@ -468,6 +479,9 @@ def generate_template_json(template_id: str, db: Session = Depends(get_db)):
                 cap = item.get("cap", 0)
                 if currency:
                     maximum_withdraw_formatted[currency] = {"cap": cap}
+
+    print(
+        f"DEBUG: Final maximum_withdraw_formatted = {maximum_withdraw_formatted}")
 
     # Fetch translations for this template
     translations = db.query(BonusTranslation).filter(

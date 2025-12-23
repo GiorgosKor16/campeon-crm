@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import React from 'react';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -33,7 +33,27 @@ interface BonusTemplateFormData {
     bonus_type: string;
 }
 
+interface CurrencyTable {
+    id: string;
+    name: string;
+    values: Record<string, number>;
+}
+
+interface StableConfig {
+    provider: string;
+    cost: CurrencyTable[];
+    maximum_amount: CurrencyTable[];
+    minimum_amount: CurrencyTable[];
+    minimum_stake_to_wager: CurrencyTable[];
+    maximum_stake_to_wager: CurrencyTable[];
+    maximum_withdraw: CurrencyTable[];
+}
+
 export default function CasinoTeamForm() {
+    const [selectedProvider, setSelectedProvider] = useState('PRAGMATIC');
+    const [pricingTable, setPricingTable] = useState<StableConfig | null>(null);
+    const [loadingPricing, setLoadingPricing] = useState(false);
+
     const [formData, setFormData] = useState<BonusTemplateFormData>({
         id: '',
         schedule_type: 'period',
@@ -46,26 +66,74 @@ export default function CasinoTeamForm() {
         trigger_duration: '7d',
         percentage: 200,
         wagering_multiplier: 15,
-        minimum_amount: Object.fromEntries(CURRENCIES.map(c => [c, c === 'EUR' ? 25 : 25])),
-        maximum_amount: Object.fromEntries(CURRENCIES.map(c => [c, c === 'EUR' ? 300 : 300])),
-        minimum_stake_to_wager: Object.fromEntries(CURRENCIES.map(() => ['*', 0.5])),
-        maximum_stake_to_wager: Object.fromEntries(CURRENCIES.map(() => ['*', 5])),
-        maximum_withdraw: Object.fromEntries(CURRENCIES.map(() => ['*', 3])),
+        minimum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 25])),
+        maximum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 300])),
+        minimum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 0.5])),
+        maximum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 5])),
+        maximum_withdraw: Object.fromEntries(CURRENCIES.map(c => [c, 3])),
         include_amount_on_target_wager: true,
         compensate_overspending: true,
         withdraw_active: false,
         category: 'GAMES',
-        provider: 'SYSTEM',
-        brand: 'SYSTEM',
+        provider: 'PRAGMATIC',
+        brand: 'PRAGMATIC',
         bonus_type: 'cash',
     });
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
+    // Fetch pricing table from admin setup when provider changes
+    useEffect(() => {
+        const fetchPricingTable = async () => {
+            setLoadingPricing(true);
+            try {
+                const response = await axios.get(
+                    `${API_ENDPOINTS.BASE_URL}/api/stable-config/${selectedProvider}`
+                );
+                if (response.data) {
+                    setPricingTable(response.data);
+
+                    // Auto-populate maximum_withdraw from the fetched table
+                    if (response.data.maximum_withdraw && response.data.maximum_withdraw.length > 0) {
+                        const withdrawTable = response.data.maximum_withdraw[0];
+                        const withdrawValues = withdrawTable.values || {};
+
+                        setFormData(prev => ({
+                            ...prev,
+                            provider: selectedProvider,
+                            brand: selectedProvider,
+                            maximum_withdraw: withdrawValues
+                        }));
+                    }
+                }
+            } catch (error: any) {
+                console.log(`No pricing table found for ${selectedProvider}`, error.response?.status);
+                // Reset to defaults if no pricing table exists
+                setPricingTable(null);
+                setFormData(prev => ({
+                    ...prev,
+                    provider: selectedProvider,
+                    brand: selectedProvider,
+                    maximum_withdraw: Object.fromEntries(CURRENCIES.map(c => [c, 3]))
+                }));
+            } finally {
+                setLoadingPricing(false);
+            }
+        };
+
+        fetchPricingTable();
+    }, [selectedProvider]);
+
     const handleBasicChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
         const parsedValue = type === 'number' ? parseFloat(value) : type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+
+        // If provider changes, trigger fetch of new pricing table
+        if (name === 'provider') {
+            setSelectedProvider(value);
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: parsedValue
@@ -121,6 +189,26 @@ export default function CasinoTeamForm() {
                                 placeholder="e.g., Black Friday: Casino Reload 200% up to €300"
                             />
                         </div>
+                        <div>
+                            <label className="label-text flex items-center gap-2">
+                                Provider
+                                {loadingPricing && <span className="text-xs text-blue-400">Loading pricing...</span>}
+                            </label>
+                            <select
+                                name="provider"
+                                value={formData.provider}
+                                onChange={handleBasicChange}
+                                disabled={loadingPricing}
+                                className="input-field"
+                            >
+                                <option value="PRAGMATIC">PRAGMATIC</option>
+                                <option value="BETSOFT">BETSOFT</option>
+                            </select>
+                            <p className="text-xs text-slate-400 mt-2">💡 Maximum withdraw amounts auto-populated from admin pricing table</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="label-text">Bonus Type</label>
                             <select
@@ -272,7 +360,10 @@ export default function CasinoTeamForm() {
 
                 {/* SECTION 4: CURRENCY TABLE */}
                 <div className="card overflow-hidden">
-                    <h3 className="section-header text-amber-400">💱 Currency Amounts</h3>
+                    <h3 className="section-header text-amber-400">💱 Currency Amounts (Corrected from Pricing Table)</h3>
+                    {pricingTable && (
+                        <p className="text-xs text-green-400 mb-4">✅ Maximum withdraw values loaded from {selectedProvider} pricing table</p>
+                    )}
 
                     <div className="overflow-x-auto rounded-lg border border-slate-700">
                         <table className="w-full text-sm border-collapse">
@@ -283,6 +374,7 @@ export default function CasinoTeamForm() {
                                     <th className="table-cell text-right font-semibold text-slate-200">Max Bonus</th>
                                     <th className="table-cell text-right font-semibold text-slate-200">Min Bet</th>
                                     <th className="table-cell text-right font-semibold text-slate-200">Max Bet</th>
+                                    <th className="table-cell text-right font-semibold text-amber-300">Max Withdraw*</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -308,7 +400,7 @@ export default function CasinoTeamForm() {
                                         <td className="table-cell">
                                             <input
                                                 type="number"
-                                                value={formData.minimum_stake_to_wager['*'] || 0.5}
+                                                value={formData.minimum_stake_to_wager[currency] || 0.5}
                                                 onChange={(e) => handleCurrencyChange(currency, 'minimum_stake_to_wager', parseFloat(e.target.value))}
                                                 className="w-full px-2 py-1.5 bg-slate-600/50 border border-slate-500 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                 step="0.1"
@@ -317,9 +409,18 @@ export default function CasinoTeamForm() {
                                         <td className="table-cell">
                                             <input
                                                 type="number"
-                                                value={formData.maximum_stake_to_wager['*'] || 5}
+                                                value={formData.maximum_stake_to_wager[currency] || 5}
                                                 onChange={(e) => handleCurrencyChange(currency, 'maximum_stake_to_wager', parseFloat(e.target.value))}
                                                 className="w-full px-2 py-1.5 bg-slate-600/50 border border-slate-500 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                step="0.1"
+                                            />
+                                        </td>
+                                        <td className="table-cell bg-amber-900/20 border-l border-amber-700">
+                                            <input
+                                                type="number"
+                                                value={formData.maximum_withdraw[currency] || 3}
+                                                onChange={(e) => handleCurrencyChange(currency, 'maximum_withdraw', parseFloat(e.target.value))}
+                                                className="w-full px-2 py-1.5 bg-amber-700/30 border border-amber-600 rounded text-amber-200 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold"
                                                 step="0.1"
                                             />
                                         </td>
@@ -328,6 +429,7 @@ export default function CasinoTeamForm() {
                             </tbody>
                         </table>
                     </div>
+                    <p className="text-xs text-amber-400 mt-3">* Values auto-populated from {selectedProvider} Withdrawals table in Admin Panel</p>
                 </div>
 
                 {/* SUBMIT BUTTON */}

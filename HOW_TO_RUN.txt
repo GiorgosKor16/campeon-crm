@@ -269,3 +269,226 @@ GIT ISSUES:
 ═══════════════════════════════════════════════════════════════════════════════
                     READY TO GO! HAPPY CODING! 🚀
 ═══════════════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════════════
+                 FIX SUMMARY - Currency-Specific Values Bug
+═══════════════════════════════════════════════════════════════════════════════
+
+DATE FIXED: December 23, 2025
+ERROR: TypeError - Cannot convert undefined or null to object
+AFFECTED COMPONENTS: CasinoTeamForm.tsx, DepositBonusForm.tsx
+
+PROBLEM DESCRIPTION:
+════════════════════
+
+The system was crashing when trying to create bonuses because:
+
+1. The form components were using incorrect Object.fromEntries() syntax
+   - They were creating objects with generic '*' keys instead of currency-specific keys
+   - Example WRONG: Object.fromEntries(CURRENCIES.map(() => ['*', value]))
+   - Example RIGHT: Object.fromEntries(CURRENCIES.map(c => [c, value]))
+
+2. The pricing table fetch logic was incorrect
+   - Admin API returns maximum_withdraw as an ARRAY of tables, not a single object
+   - Code was trying to access .values directly instead of from the first array element
+   - Example WRONG: response.data.maximum_withdraw.values
+   - Example RIGHT: response.data.maximum_withdraw[0].values
+
+3. The form tried to use Object.entries() on potentially undefined objects
+   - When maximumWithdraw was undefined/null, it crashed
+   - No null coalescing or safety checks were in place
+
+COMPLETE FIX - What Was Changed:
+════════════════════════════════
+
+FILE 1: src/components/CasinoTeamForm.tsx
+─────────────────────────────────────────
+
+✓ Added imports: useEffect, and moved useState to include it
+✓ Added interface CurrencyTable for type safety
+✓ Added interface StableConfig to represent admin pricing tables
+✓ Added state management:
+  - selectedProvider: tracks which provider's pricing to fetch
+  - pricingTable: stores fetched admin pricing table
+  - loadingPricing: loading state for async fetch
+
+✓ Fixed Object.fromEntries() calls in initial state:
+  Line 69-72: Changed from ['*', value] to [c, value] for all currency fields
+  - minimum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 25]))
+  - maximum_amount: Object.fromEntries(CURRENCIES.map(c => [c, 300]))
+  - minimum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 0.5]))
+  - maximum_stake_to_wager: Object.fromEntries(CURRENCIES.map(c => [c, 5]))
+  - maximum_withdraw: Object.fromEntries(CURRENCIES.map(c => [c, 3]))
+
+✓ Added useEffect hook to fetch pricing table on component mount:
+  - Calls GET /api/stable-config/{selectedProvider}
+  - Handles the array response format correctly:
+    if (response.data?.maximum_withdraw && Array.isArray(response.data.maximum_withdraw)) {
+        const withdrawTable = response.data.maximum_withdraw[0];
+        if (withdrawTable?.values) { ... }
+    }
+  - Auto-populates maximum_withdraw field with fetched values
+  - Falls back to defaults if fetch fails
+
+✓ Updated handleBasicChange to trigger fetch when provider changes:
+  if (name === 'provider') {
+      setSelectedProvider(value);
+  }
+
+✓ Updated form UI:
+  - Added provider selector at top of form
+  - Added loading indicator when fetching pricing
+  - Added visual note: "Maximum withdraw amounts auto-populated from admin pricing table"
+  - Highlighted maximum_withdraw column in amber/yellow to show it's from admin setup
+  - Added note at bottom: "* Values auto-populated from {provider} Withdrawals table in Admin Panel"
+
+FILE 2: src/components/DepositBonusForm.tsx
+───────────────────────────────────────────
+
+✓ Fixed useEffect hook (lines 65-90):
+  - Added Array.isArray() checks before using array methods
+  - Properly extract first table from array: response.data.maximum_withdraw[0]
+  - Only access .values from the extracted table object
+  - Added error handling that keeps defaults if fetch fails
+
+  BEFORE:
+    if (response.data?.maximum_withdraw?.values) {
+        setAdminMaxWithdraw(response.data.maximum_withdraw.values);
+    }
+
+  AFTER:
+    if (response.data?.maximum_withdraw && Array.isArray(response.data.maximum_withdraw)) {
+        const withdrawTable = response.data.maximum_withdraw[0];
+        if (withdrawTable?.values) {
+            setAdminMaxWithdraw(withdrawTable.values);
+        }
+    }
+
+✓ Fixed Object.entries() crash (line 205):
+  - Added null coalescing operator to prevent crash
+  - Object.entries(formData.maximumWithdraw || {})
+  
+  This ensures even if maximumWithdraw is undefined, we create empty object
+  and Object.entries() won't crash
+
+✓ Fixed form reset (line 247):
+  - Changed from hardcoded default to use fetched adminMaxWithdraw
+  - maximumWithdraw: adminMaxWithdraw || Object.fromEntries(CURRENCIES.map(c => [c, 100]))
+
+HOW IT WORKS NOW - Complete Flow:
+═════════════════════════════════
+
+1. USER SELECTS PROVIDER (PRAGMATIC / BETSOFT)
+   ↓
+2. COMPONENT TRIGGERS useEffect HOOK
+   ↓
+3. FETCH FROM /api/stable-config/{provider}
+   ↓
+4. EXTRACT FIRST TABLE FROM ARRAY: response.data.maximum_withdraw[0]
+   ↓
+5. GET .values FROM TABLE: withdrawTable.values = { EUR: 3, USD: 2.5, ... }
+   ↓
+6. AUTO-POPULATE FORM FIELDS with currency-specific values
+   ↓
+7. USER CREATES BONUS
+   ↓
+8. FORM DATA HAS PROPER CURRENCY KEYS (not '*' keys)
+   ↓
+9. Object.entries() safely converts to: [[EUR, 3], [USD, 2.5], ...]
+   ↓
+10. SUBMIT SUCCEEDS ✅
+
+TESTING CHECKLIST:
+═════════════════
+
+✓ Go to Admin Panel → Set up pricing tables with PRAGMATIC provider
+  - Create withdrawal table with values for at least EUR, USD, GBP
+  - Save the table to database
+
+✓ Go to CasinoTeamForm
+  - Provider should default to PRAGMATIC
+  - Select different providers to see auto-fetch work
+  - Maximum withdraw column should show values from admin setup
+
+✓ Go to DepositBonusForm
+  - Should auto-load admin pricing values
+  - Can enter EUR cost and see free spins
+  - Submit should work without errors
+
+KEY TAKEAWAY FOR NEXT CHAT:
+═══════════════════════════
+
+The system now properly:
+1. Fetches pricing tables from admin setup via API
+2. Extracts currency-specific values from table arrays
+3. Uses correct Object.fromEntries() syntax with currency keys (not '*')
+4. Safely handles undefined/null values with coalescing
+5. Auto-populates bonus forms with pricing from admin configuration
+6. No more "Cannot convert undefined or null to object" errors
+
+All forms now correctly fetch the withdrawals table and use those values
+for each currency when creating bonuses.
+
+═══════════════════════════════════════════════════════════════════════════════
+              UI CLEANUP - Removed Bonus Creation from Browse Tab
+═════════════════════════════════════════════════════════════════════════════
+
+DATE CLEANED: December 23, 2025
+COMPONENT: src/components/BonusBrowser.tsx
+
+WHAT WAS REMOVED:
+═════════════════
+
+✓ Removed BonusWizard import
+✓ Removed showWizard state management
+✓ Removed handleBonusCreated function
+✓ Removed wizard conditional render (if showWizard { return <BonusWizard/> })
+✓ Removed "✨ Create New Bonus" button from header
+
+WHY THIS WAS DONE:
+═══════════════════
+
+The Browse Bonuses tab should ONLY display:
+  - Browse bonuses by date
+  - Search bonuses by ID
+  - Translation Team actions
+  - CRM Ops Team actions
+
+The creation logic will be moved to a dedicated "Create Bonus" tab that supports
+multiple bonus types (not just Deposit).
+
+WHAT REMAINS - For Future Implementation:
+═══════════════════════════════════════════
+
+The BonusItem interface still includes:
+  - category: string              (will be used for DEPOSIT, RELOAD, FSDROP, etc.)
+  - trigger_type: string          (will categorize bonus types)
+
+These fields are preserved so when you build the "Create Bonus" tab, you can:
+  1. Create bonuses with different categories (DEPOSIT, RELOAD, WAGER, COMBO, etc.)
+  2. Use trigger_type to categorize how bonuses are triggered
+  3. Implement category-specific form fields
+
+BONUS CATEGORIES TO IMPLEMENT LATER:
+═════════════════════════════════════
+
+From bonusConfig.ts, these 7 types should each have their own creation form:
+
+1. DEPOSIT   - "Deposit up to €300"
+2. RELOAD    - "Reload 200% bonus"
+3. FSDROP    - "Drop 50 Free Spins"
+4. WAGER     - "200€ and get 500 free spins"
+5. SEQ       - "Sequential multi-stage bonus"
+6. COMBO     - "Combine multiple bonuses"
+7. CASHBACK  - "10% Cashback"
+
+NEXT STEPS:
+════════════
+
+When ready, create a new "Create Bonus" tab that:
+1. Allows selection of bonus type (from the 7 categories above)
+2. Shows type-specific form fields
+3. Handles multi-currency pricing from admin setup
+4. Submits to appropriate API endpoint
+
+═══════════════════════════════════════════════════════════════════════════════
