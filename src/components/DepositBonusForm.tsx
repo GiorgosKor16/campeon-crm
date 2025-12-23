@@ -12,6 +12,7 @@ interface DepositBonusData {
     provider: string;
     brand: string;
     bonusType: string;
+    category: string;
     gameName: string;
     eurCostInput: string;
     freeSpins: string;
@@ -37,6 +38,7 @@ export default function DepositBonusForm() {
         provider: 'PRAGMATIC',
         brand: 'PRAGMATIC',
         bonusType: 'cost',
+        category: 'games',
         gameName: '',
         eurCostInput: '',
         freeSpins: '',
@@ -211,9 +213,11 @@ export default function DepositBonusForm() {
                     provider: formData.provider,
                     brand: formData.brand,
                     type: formData.bonusType,
+                    category: formData.category,
                     withdrawActive: false,
                     expiry: formData.duration,
                     extra: {
+                        category: formData.category,
                         game: formData.gameName
                     }
                 },
@@ -238,6 +242,7 @@ export default function DepositBonusForm() {
                 provider: 'PRAGMATIC',
                 brand: 'PRAGMATIC',
                 bonusType: 'cost',
+                category: 'games',
                 gameName: '',
                 eurCostInput: '',
                 freeSpins: '',
@@ -332,6 +337,20 @@ export default function DepositBonusForm() {
                         placeholder="e.g., Bigger Bass Bonanza"
                         className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none"
                     />
+                </div>
+
+                {/* Category */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                    <input
+                        type="text"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleChange}
+                        placeholder="e.g., games"
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">e.g., games, slots, table_games</p>
                 </div>
 
                 {/* Bonus Type */}

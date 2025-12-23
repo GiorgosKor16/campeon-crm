@@ -146,6 +146,8 @@ def create_bonus_template_simple(payload: Dict[str, Any], db: Session = Depends(
                 config_obj["brand"] = config["brand"]
             if config.get("type"):
                 config_obj["type"] = config["type"]
+            if config.get("category"):
+                config_obj["category"] = config["category"]
             if config.get("extra"):
                 config_obj["extra"] = config["extra"]
             if config_obj:
@@ -522,12 +524,14 @@ def generate_template_json(template_id: str, db: Session = Depends(get_db)):
             "cost": template.maximum_amount,
             "multiplier": template.maximum_amount,
             "maximumBets": template.maximum_stake_to_wager,
-            "maximumWithdraw": maximum_withdraw_formatted,
             "provider": template.provider,
             "brand": template.brand,
             "type": template.bonus_type,
+            "category": template.category,
+            "maximumWithdraw": maximum_withdraw_formatted,
             "extra": {
-                "game": "Sugar Rush"  # This should be stored, but for now using from extra
+                "category": template.category,
+                "game": template.bonus_type  # Get from template data
             }
         },
         "type": "bonus_template"
