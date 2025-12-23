@@ -26,10 +26,6 @@ interface FormData {
     scheduleType: string;
     scheduleFrom: string;
     scheduleTo: string;
-
-    // Display fields
-    triggerName: string;
-    triggerDescription: string;
 }
 
 export default function UnifiedBonusForm() {
@@ -50,8 +46,6 @@ export default function UnifiedBonusForm() {
         scheduleType: 'period',
         scheduleFrom: '',
         scheduleTo: '',
-        triggerName: '',
-        triggerDescription: '',
     });
 
     const [loading, setLoading] = useState(false);
@@ -103,8 +97,8 @@ export default function UnifiedBonusForm() {
             // Build payload, excluding empty optional fields
             const payload: any = {
                 id: formData.id,
-                trigger_name: { '*': formData.triggerName || `${formData.provider} ${formData.bonusType} Bonus` },
-                trigger_description: { '*': formData.triggerDescription || `${formData.provider} bonus` },
+                trigger_name: { '*': `${formData.provider} ${formData.bonusType} Bonus` },
+                trigger_description: { '*': `${formData.provider} bonus` },
                 trigger_type: formData.triggerType,
                 trigger_iterations: 1,
                 trigger_duration: '7d',
@@ -197,8 +191,6 @@ export default function UnifiedBonusForm() {
                 scheduleType: 'period',
                 scheduleFrom: '',
                 scheduleTo: '',
-                triggerName: '',
-                triggerDescription: '',
             });
 
             setTimeout(() => setMessage(''), 4000);
@@ -407,17 +399,6 @@ export default function UnifiedBonusForm() {
                             <h3 className="text-lg font-semibold text-white mb-4">3️⃣ General Settings</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">Trigger Name</label>
-                                    <input
-                                        type="text"
-                                        name="triggerName"
-                                        value={formData.triggerName}
-                                        onChange={handleInputChange}
-                                        placeholder="e.g., 100% Casino Reload"
-                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
-                                    />
-                                </div>
-                                <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
                                     <select
                                         name="category"
@@ -526,8 +507,8 @@ export default function UnifiedBonusForm() {
                             type="submit"
                             disabled={loading || !formData.id}
                             className={`w-full py-3 px-6 rounded font-semibold transition ${loading || !formData.id
-                                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/50'
+                                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/50'
                                 }`}
                         >
                             {loading ? '⏳ Creating...' : '✅ Create Bonus'}
