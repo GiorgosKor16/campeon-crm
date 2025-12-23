@@ -48,12 +48,64 @@ export default function UnifiedBonusForm() {
         scheduleTo: '',
     });
 
+    // For COMBO: track multiple bonuses being built
+    const [comboMode, setComboMode] = useState(false);
+    const [comboBonuses, setComboBonuses] = useState<FormData[]>([]);
+    const [activeComboBonus, setActiveComboBonus] = useState(0);
+
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
     const bonusTypeConfig = formData.bonusType ? BONUS_TYPES[formData.bonusType] : null;
 
     const handleTypeChange = (type: BonusType) => {
+        // Enable COMBO mode if COMBO is selected
+        if (type === 'COMBO') {
+            setComboMode(true);
+            setComboBonuses([
+                {
+                    id: '',
+                    bonusType: '',
+                    provider: 'PRAGMATIC',
+                    brand: 'PRAGMATIC',
+                    category: 'GAMES',
+                    triggerType: 'reload',
+                    minimumAmount: '',
+                    percentage: '',
+                    wageringMultiplier: '',
+                    spinCount: '',
+                    wagerAmount: '',
+                    stageNumber: '',
+                    linkedBonusIds: [''],
+                    scheduleType: 'period',
+                    scheduleFrom: '',
+                    scheduleTo: '',
+                },
+                {
+                    id: '',
+                    bonusType: '',
+                    provider: 'PRAGMATIC',
+                    brand: 'PRAGMATIC',
+                    category: 'GAMES',
+                    triggerType: 'reload',
+                    minimumAmount: '',
+                    percentage: '',
+                    wageringMultiplier: '',
+                    spinCount: '',
+                    wagerAmount: '',
+                    stageNumber: '',
+                    linkedBonusIds: [''],
+                    scheduleType: 'period',
+                    scheduleFrom: '',
+                    scheduleTo: '',
+                },
+            ]);
+            setActiveComboBonus(0);
+        } else {
+            setComboMode(false);
+            setComboBonuses([]);
+        }
+
         setFormData(prev => ({
             ...prev,
             bonusType: type,
@@ -103,11 +155,159 @@ export default function UnifiedBonusForm() {
         }));
     };
 
+    // COMBO Mode Handlers
+    const handleComboBonusChange = (bonusIndex: number, field: keyof FormData, value: any) => {
+        const updated = [...comboBonuses];
+        updated[bonusIndex] = { ...updated[bonusIndex], [field]: value };
+        setComboBonuses(updated);
+
+        // Auto-generate ID if bonus type exists
+        if (field === 'bonusType' || (field !== 'bonusType' && updated[bonusIndex].bonusType)) {
+            const bonus = updated[bonusIndex];
+            if (bonus.bonusType) {
+                const newId = generateBonusId(bonus.bonusType, bonus);
+                if (newId) {
+                    updated[bonusIndex].id = newId;
+                    setComboBonuses(updated);
+                }
+            }
+        }
+    };
+
+    const handleComboBonusInputChange = (bonusIndex: number, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        handleComboBonusChange(bonusIndex, name as keyof FormData, value);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            // COMBO Mode: Create both bonuses and link them
+            if (comboMode && comboBonuses.length === 2) {
+                const bonus1 = comboBonuses[0];
+                const bonus2 = comboBonuses[1];
+
+                if (!bonus1.bonusType || !bonus2.bonusType) {
+                    setMessage('❌ Please select bonus types for both bonuses');
+                    setLoading(false);
+                    return;
+                }
+
+                if (!bonus1.id || !bonus2.id) {
+                    setMessage('❌ Please fill in required fields for both bonuses');
+                    setLoading(false);
+                    return;
+                }
+
+                // Helper function to build payload for individual bonus
+                const buildBonusPayload = (bonus: FormData) => {
+                    const payload: any = {
+                        id: bonus.id,
+                        trigger_name: { '*': `${bonus.provider} ${bonus.bonusType} Bonus` },
+                        trigger_description: { '*': `${bonus.provider} bonus` },
+                        trigger_type: bonus.triggerType,
+                        trigger_iterations: 1,
+                        trigger_duration: '7d',
+                        category: bonus.category,
+                        provider: bonus.provider,
+                        brand: bonus.brand,
+                        bonus_type: bonus.bonusType.toLowerCase(),
+                    };
+
+                    switch (bonus.bonusType) {
+                        case 'DEPOSIT':
+                        case 'RELOAD':
+                            payload.minimum_amount = { '*': parseFloat(bonus.minimumAmount) || 25 };
+                            payload.percentage = parseFloat(bonus.percentage) || 100;
+                            payload.wagering_multiplier = parseFloat(bonus.wageringMultiplier) || 20;
+                            payload.maximum_amount = { '*': 300 };
+                            break;
+                        case 'FSDROP':
+                            payload.minimum_amount = { '*': 0 };
+                            payload.percentage = parseFloat(bonus.spinCount) || 50;
+                            payload.wagering_multiplier = 5;
+                            payload.maximum_amount = { '*': 0 };
+                            break;
+                        case 'WAGER':
+                            payload.minimum_amount = { '*': parseFloat(bonus.wagerAmount) || 200 };
+                            payload.percentage = parseFloat(bonus.spinCount) || 500;
+                            payload.wagering_multiplier = 10;
+                            payload.maximum_amount = { '*': 500 };
+                            break;
+                        case 'SEQ':
+                            payload.minimum_amount = { '*': parseFloat(bonus.minimumAmount) || 25 };
+                            payload.percentage = parseFloat(bonus.percentage) || 100;
+                            payload.wagering_multiplier = parseFloat(bonus.wageringMultiplier) || 15;
+                            payload.maximum_amount = { '*': 300 };
+                            break;
+                        case 'CASHBACK':
+                            payload.minimum_amount = { '*': 0 };
+                            payload.percentage = parseFloat(bonus.percentage) || 10;
+                            payload.wagering_multiplier = 0;
+                            payload.maximum_amount = { '*': parseFloat(bonus.minimumAmount) || 100 };
+                            break;
+                    }
+
+                    payload.minimum_stake_to_wager = { '*': 0.5 };
+                    payload.maximum_stake_to_wager = { '*': 5 };
+                    payload.maximum_withdraw = { '*': 3 };
+                    payload.include_amount_on_target_wager = true;
+                    payload.compensate_overspending = true;
+                    payload.withdraw_active = false;
+
+                    if (bonus.scheduleFrom && bonus.scheduleTo) {
+                        payload.schedule_type = bonus.scheduleType;
+                        payload.schedule_from = bonus.scheduleFrom;
+                        payload.schedule_to = bonus.scheduleTo;
+                    }
+
+                    return payload;
+                };
+
+                // Create both bonuses
+                const payload1 = buildBonusPayload(bonus1);
+                const payload2 = buildBonusPayload(bonus2);
+
+                await axios.post(API_ENDPOINTS.BONUS_TEMPLATES, payload1);
+                await axios.post(API_ENDPOINTS.BONUS_TEMPLATES, payload2);
+
+                // Create COMBO bonus linking both
+                const comboPayload: any = {
+                    id: `COMBO_${bonus1.id}_${bonus2.id}`,
+                    trigger_name: { '*': `${bonus1.provider} COMBO Bonus` },
+                    trigger_description: { '*': `Combo of ${bonus1.bonusType} and ${bonus2.bonusType}` },
+                    trigger_type: 'deposit',
+                    trigger_iterations: 1,
+                    trigger_duration: '7d',
+                    category: bonus1.category,
+                    provider: bonus1.provider,
+                    brand: bonus1.brand,
+                    bonus_type: 'combo',
+                    minimum_amount: { '*': 25 },
+                    percentage: 100,
+                    wagering_multiplier: 15,
+                    maximum_amount: { '*': 300 },
+                    minimum_stake_to_wager: { '*': 0.5 },
+                    maximum_stake_to_wager: { '*': 5 },
+                    maximum_withdraw: { '*': 3 },
+                    include_amount_on_target_wager: true,
+                    compensate_overspending: true,
+                    withdraw_active: false,
+                    linked_bonus_ids: [bonus1.id, bonus2.id],
+                };
+
+                await axios.post(API_ENDPOINTS.BONUS_TEMPLATES, comboPayload);
+
+                setMessage(`✅ Created COMBO bonus linking "${bonus1.id}" + "${bonus2.id}"`);
+                setComboMode(false);
+                setComboBonuses([]);
+                setFormData(prev => ({ ...prev, bonusType: '' }));
+                return;
+            }
+
+            // Regular Mode: Create single bonus
             if (!formData.bonusType) {
                 setMessage('❌ Please select a bonus type');
                 setLoading(false);
@@ -254,7 +454,200 @@ export default function UnifiedBonusForm() {
                     )}
                 </div>
 
-                {formData.bonusType && (
+                {/* COMBO MODE: Dual Bonus Builder */}
+                {comboMode && comboBonuses.length === 2 && (
+                    <>
+                        <div className="bg-gradient-to-r from-purple-900 to-blue-900 p-6 rounded border-2 border-purple-500">
+                            <h2 className="text-xl font-bold text-white mb-2">🔗 COMBO Bonus Builder</h2>
+                            <p className="text-purple-200 text-sm">Build two bonuses and link them together</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Bonus 1 */}
+                            <div className="bg-gray-800 p-6 rounded border-2 border-blue-500">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-blue-400">💎 Bonus 1</h3>
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${comboBonuses[0].bonusType ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
+                                        {comboBonuses[0].bonusType || 'Select type'}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">Bonus Type</label>
+                                        <select
+                                            value={comboBonuses[0].bonusType}
+                                            onChange={(e) => handleComboBonusChange(0, 'bonusType', e.target.value as BonusType)}
+                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                        >
+                                            <option value="">-- Select Type --</option>
+                                            {Object.entries(BONUS_TYPES).map(([_, config]) => (
+                                                config.type !== 'COMBO' && (
+                                                    <option key={config.type} value={config.type}>
+                                                        {config.label}
+                                                    </option>
+                                                )
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {comboBonuses[0].bonusType && (
+                                        <>
+                                            {(comboBonuses[0].bonusType === 'DEPOSIT' || comboBonuses[0].bonusType === 'RELOAD') && (
+                                                <>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">Minimum Amount (€)</label>
+                                                        <input
+                                                            type="number"
+                                                            value={comboBonuses[0].minimumAmount}
+                                                            onChange={(e) => handleComboBonusChange(0, 'minimumAmount', e.target.value)}
+                                                            placeholder="e.g., 25"
+                                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">Percentage (%)</label>
+                                                        <input
+                                                            type="number"
+                                                            value={comboBonuses[0].percentage}
+                                                            onChange={(e) => handleComboBonusChange(0, 'percentage', e.target.value)}
+                                                            placeholder="e.g., 100"
+                                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">Wagering Multiplier</label>
+                                                        <input
+                                                            type="number"
+                                                            value={comboBonuses[0].wageringMultiplier}
+                                                            onChange={(e) => handleComboBonusChange(0, 'wageringMultiplier', e.target.value)}
+                                                            placeholder="e.g., 20"
+                                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {comboBonuses[0].bonusType === 'FSDROP' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-300 mb-2">Free Spins Count</label>
+                                                    <input
+                                                        type="number"
+                                                        value={comboBonuses[0].spinCount}
+                                                        onChange={(e) => handleComboBonusChange(0, 'spinCount', e.target.value)}
+                                                        placeholder="e.g., 50"
+                                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div className="text-xs text-blue-300 bg-blue-900 bg-opacity-30 p-2 rounded">
+                                                <strong>ID:</strong> {comboBonuses[0].id || 'Auto-generated'}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Arrow / Plus */}
+                            <div className="flex items-center justify-center">
+                                <div className="text-center">
+                                    <div className="text-3xl font-bold text-purple-400 mb-2">+</div>
+                                    <p className="text-gray-400 text-sm">Combined</p>
+                                    <p className="text-purple-300 font-semibold mt-2">= COMBO</p>
+                                </div>
+                            </div>
+
+                            {/* Bonus 2 */}
+                            <div className="bg-gray-800 p-6 rounded border-2 border-green-500">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-green-400">💎 Bonus 2</h3>
+                                    <span className={`px-2 py-1 rounded text-xs font-medium ${comboBonuses[1].bonusType ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
+                                        {comboBonuses[1].bonusType || 'Select type'}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">Bonus Type</label>
+                                        <select
+                                            value={comboBonuses[1].bonusType}
+                                            onChange={(e) => handleComboBonusChange(1, 'bonusType', e.target.value as BonusType)}
+                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                        >
+                                            <option value="">-- Select Type --</option>
+                                            {Object.entries(BONUS_TYPES).map(([_, config]) => (
+                                                config.type !== 'COMBO' && (
+                                                    <option key={config.type} value={config.type}>
+                                                        {config.label}
+                                                    </option>
+                                                )
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {comboBonuses[1].bonusType && (
+                                        <>
+                                            {(comboBonuses[1].bonusType === 'DEPOSIT' || comboBonuses[1].bonusType === 'RELOAD') && (
+                                                <>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">Minimum Amount (€)</label>
+                                                        <input
+                                                            type="number"
+                                                            value={comboBonuses[1].minimumAmount}
+                                                            onChange={(e) => handleComboBonusChange(1, 'minimumAmount', e.target.value)}
+                                                            placeholder="e.g., 25"
+                                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">Percentage (%)</label>
+                                                        <input
+                                                            type="number"
+                                                            value={comboBonuses[1].percentage}
+                                                            onChange={(e) => handleComboBonusChange(1, 'percentage', e.target.value)}
+                                                            placeholder="e.g., 100"
+                                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-300 mb-2">Wagering Multiplier</label>
+                                                        <input
+                                                            type="number"
+                                                            value={comboBonuses[1].wageringMultiplier}
+                                                            onChange={(e) => handleComboBonusChange(1, 'wageringMultiplier', e.target.value)}
+                                                            placeholder="e.g., 20"
+                                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+
+                                            {comboBonuses[1].bonusType === 'FSDROP' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-300 mb-2">Free Spins Count</label>
+                                                    <input
+                                                        type="number"
+                                                        value={comboBonuses[1].spinCount}
+                                                        onChange={(e) => handleComboBonusChange(1, 'spinCount', e.target.value)}
+                                                        placeholder="e.g., 50"
+                                                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div className="text-xs text-green-300 bg-green-900 bg-opacity-30 p-2 rounded">
+                                                <strong>ID:</strong> {comboBonuses[1].id || 'Auto-generated'}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {formData.bonusType && !comboMode && (
                     <>
                         {/* Step 2: Type-Specific Fields */}
                         <div className="bg-gray-800 p-6 rounded border border-gray-700">
