@@ -32,7 +32,7 @@ interface CurrencyTable {
 }
 
 export default function DepositBonusForm() {
-    const [formData, setFormData] = useState<DepositBonusData>({
+    const [formData, setFormData] = useState<DepositBonusData>(() => ({
         id: '',
         provider: 'PRAGMATIC',
         brand: 'PRAGMATIC',
@@ -48,7 +48,7 @@ export default function DepositBonusForm() {
         multipliers: Object.fromEntries(CURRENCIES.map(c => [c, 0])),
         maximumBets: Object.fromEntries(CURRENCIES.map(c => [c, 0])),
         maximumWithdraw: Object.fromEntries(CURRENCIES.map(c => [c, 100])),
-    });
+    }));
 
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
