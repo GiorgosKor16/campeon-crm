@@ -100,7 +100,7 @@ export default function BonusBrowser() {
 
     const handleSearch = async () => {
         if (!searchId.trim()) {
-            setMessage('❌ Please enter a bonus ID');
+            setMessage('❌ Please enter a bonus ID or date');
             return;
         }
 
@@ -108,14 +108,27 @@ export default function BonusBrowser() {
         setMessage('');
         try {
             const response = await axios.get(`${API_ENDPOINTS.BASE_URL}/api/bonus-templates/search`, {
-                params: { id: searchId }
+                params: { query: searchId }
             });
-            setBonuses([response.data]);
-            setSelectedBonusId(response.data.id);
-            setMessage(`✅ Found bonus: ${searchId}`);
+
+            if (Array.isArray(response.data)) {
+                setBonuses(response.data);
+                setSelectedBonusId(response.data.length > 0 ? response.data[0].id : null);
+                if (response.data.length === 0) {
+                    setMessage(`📭 No bonuses found matching: ${searchId}`);
+                } else if (response.data.length === 1) {
+                    setMessage(`✅ Found 1 bonus matching: ${searchId}`);
+                } else {
+                    setMessage(`✅ Found ${response.data.length} bonuses matching: ${searchId}`);
+                }
+            } else {
+                setBonuses([response.data]);
+                setSelectedBonusId(response.data.id);
+                setMessage(`✅ Found bonus: ${searchId}`);
+            }
         } catch (error: any) {
             const errorMsg = error.response?.data?.detail || error.message;
-            setMessage(`❌ Bonus not found: ${errorMsg}`);
+            setMessage(`❌ No bonuses found: ${errorMsg}`);
             setBonuses([]);
             setSelectedBonusId(null);
         } finally {
@@ -327,15 +340,15 @@ export default function BonusBrowser() {
 
                     {/* Section 2: Search by ID */}
                     <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-6">
-                        <h2 className="text-xl font-bold text-white mb-6">🔎 Search by ID</h2>
+                        <h2 className="text-xl font-bold text-white mb-6">🔎 Search by ID or Date</h2>
 
                         <div className="mb-6">
-                            <label className="block text-sm font-medium text-slate-300 mb-2">Bonus ID</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Search Query</label>
                             <input
                                 type="text"
                                 value={searchId}
                                 onChange={(e) => setSearchId(e.target.value)}
-                                placeholder="e.g., Black Friday: Casino Reload 200%..."
+                                placeholder="e.g., DEPOSIT_25 or 2025-12-23 or 2025-12"
                                 className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
                                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                             />

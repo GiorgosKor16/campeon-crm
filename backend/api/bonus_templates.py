@@ -72,16 +72,56 @@ def list_bonus_templates(skip: int = 0, limit: int = 100, db: Session = Depends(
 
 
 @router.get("/bonus-templates/search")
-def search_bonus_template(id: str, db: Session = Depends(get_db)):
-    """Search for a bonus template by ID"""
-    template = db.query(BonusTemplate).filter(
-        BonusTemplate.id == id).first()
-    if not template:
+def search_bonus_template(query: str, db: Session = Depends(get_db)):
+    """Search for bonus templates by ID (partial match), date, or other fields"""
+    from sqlalchemy import or_, func
+
+    if not query.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Search query cannot be empty"
+        )
+
+    query_str = query.strip()
+
+    # Try to parse as date (YYYY-MM-DD, YYYY-MM, or YYYY formats)
+    date_filter = None
+    if len(query_str) == 10 and query_str.count('-') == 2:  # YYYY-MM-DD
+        date_filter = query_str
+    elif len(query_str) == 7 and query_str.count('-') == 1:  # YYYY-MM
+        date_filter = query_str
+    elif len(query_str) == 4 and query_str.isdigit():  # YYYY
+        date_filter = query_str
+
+    # Build the query with multiple conditions
+    conditions = [
+        BonusTemplate.id.ilike(f"%{query_str}%"),  # Partial ID match
+        BonusTemplate.provider.ilike(f"%{query_str}%"),
+        BonusTemplate.brand.ilike(f"%{query_str}%"),
+        BonusTemplate.category.ilike(f"%{query_str}%"),
+    ]
+
+    # Add date-based filtering if query looks like a date
+    if date_filter:
+        if len(date_filter) == 10:  # YYYY-MM-DD
+            conditions.append(func.strftime(
+                '%Y-%m-%d', BonusTemplate.created_at) == date_filter)
+        elif len(date_filter) == 7:  # YYYY-MM
+            conditions.append(func.strftime(
+                '%Y-%m', BonusTemplate.created_at) == date_filter)
+        elif len(date_filter) == 4:  # YYYY
+            conditions.append(func.strftime(
+                '%Y', BonusTemplate.created_at) == date_filter)
+
+    templates = db.query(BonusTemplate).filter(or_(*conditions)).all()
+
+    if not templates:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Template '{id}' not found"
+            detail=f"No bonuses found matching: {query_str}"
         )
-    return template
+
+    return templates
 
 
 @router.get("/bonus-templates/dates/{year}/{month}", response_model=List[BonusTemplateResponse])
