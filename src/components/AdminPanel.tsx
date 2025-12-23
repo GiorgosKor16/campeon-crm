@@ -5,7 +5,7 @@ import axios from 'axios';
 import React from 'react';
 import { API_ENDPOINTS } from '@/lib/api-config';
 
-const CURRENCIES = ['EUR', 'USD', 'CAD', 'AUD', 'NZD', 'GBP', 'BRL', 'NOK', 'PEN', 'CLP', 'MXN', 'CHF', 'ZAR', 'PLN', 'AZN', 'TRY', 'JPY', 'KZT', 'RUB', 'HUF', 'UZS'];
+const CURRENCIES = ['EUR', 'USD', 'CAD', 'AUD', 'BRL', 'NOK', 'NZD', 'CLP', 'MXN', 'GBP', 'PLN', 'PEN', 'ZAR', 'CHF', 'NGN', 'JPY', 'AZN', 'TRY', 'KZT', 'RUB', 'UZS'];
 const PROVIDERS = ['PRAGMATIC', 'BETSOFT'];
 
 interface CurrencyTable {
@@ -57,6 +57,11 @@ export default function AdminPanel() {
 
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importData, setImportData] = useState('');
+    const [addingCurrency, setAddingCurrency] = useState<{ field: string; tableId: string } | null>(null);
+    const [newCurrencyName, setNewCurrencyName] = useState('');
+    const [newCurrencyValue, setNewCurrencyValue] = useState<number>(0);
 
     const config = selectedProvider === 'PRAGMATIC' ? pragmaticConfig : betsoftConfig;
     const setConfig = selectedProvider === 'PRAGMATIC' ? setPragmaticConfig : setBetsoftConfig;
@@ -170,6 +175,52 @@ export default function AdminPanel() {
         }
     };
 
+
+    const handleBulkImport = () => {
+        try {
+            const lines = importData.trim().split('\n');
+            if (lines.length < 2) {
+                setMessage('❌ Invalid format: need at least headers and 1 data row');
+                return;
+            }
+
+            const currencyHeaders = lines[0].split('\t').map(c => c.trim()).filter(c => c);
+            const newTables: CurrencyTable[] = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split('\t').map(v => v.trim()).filter(v => v);
+                if (values.length === 0) continue;
+
+                const tableData: Record<string, number> = {};
+                currencyHeaders.forEach((currency, idx) => {
+                    tableData[currency] = parseFloat(values[idx]) || 0;
+                });
+
+                newTables.push({
+                    id: String(i),
+                    name: `Table ${i}`,
+                    values: tableData
+                });
+            }
+
+            if (newTables.length === 0) {
+                setMessage('❌ No valid data rows found');
+                return;
+            }
+
+            setConfig(prev => ({
+                ...prev,
+                cost: newTables,
+            }));
+
+            setMessage(`✅ Imported ${newTables.length} pricing tables!`);
+            setShowImportModal(false);
+            setImportData('');
+        } catch (error: any) {
+            setMessage(`❌ Import error: ${error.message}`);
+        }
+    };
+
     const renderSettingTable = (field: string, title: string, description: string) => {
         let tables = (config[field as keyof StableConfigWithVariations] as CurrencyTable[]);
         tables = [...tables].sort((a, b) => (a.values['EUR'] || 0) - (b.values['EUR'] || 0));
@@ -248,6 +299,69 @@ export default function AdminPanel() {
                                     <div className="text-center py-4 text-slate-500 text-xs">
                                         No currencies configured
                                     </div>
+                                )}
+
+                                {/* Add Currency Form */}
+                                {addingCurrency?.field === field && addingCurrency?.tableId === table.id ? (
+                                    <div className="p-3 bg-slate-700/50 border border-slate-600 rounded-lg mt-3 space-y-2">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Currency (e.g., USD)"
+                                                value={newCurrencyName}
+                                                onChange={(e) => setNewCurrencyName(e.target.value.toUpperCase())}
+                                                maxLength="3"
+                                                className="flex-1 px-2 py-1.5 text-xs bg-slate-700 text-white rounded border border-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+                                            />
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                placeholder="Value"
+                                                value={newCurrencyValue}
+                                                onChange={(e) => setNewCurrencyValue(parseFloat(e.target.value) || 0)}
+                                                className="w-20 px-2 py-1.5 text-xs bg-slate-700 text-white rounded border border-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 text-right"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    if (newCurrencyName.trim()) {
+                                                        setConfig(prev => ({
+                                                            ...prev,
+                                                            [field]: (prev[field as keyof StableConfigWithVariations] as CurrencyTable[]).map(t =>
+                                                                t.id === table.id
+                                                                    ? { ...t, values: { ...t.values, [newCurrencyName]: newCurrencyValue } }
+                                                                    : t
+                                                            )
+                                                        }));
+                                                        setAddingCurrency(null);
+                                                        setNewCurrencyName('');
+                                                        setNewCurrencyValue(0);
+                                                    }
+                                                }}
+                                                className="flex-1 px-2 py-1.5 text-xs font-medium bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
+                                            >
+                                                ✓ Add
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setAddingCurrency(null);
+                                                    setNewCurrencyName('');
+                                                    setNewCurrencyValue(0);
+                                                }}
+                                                className="flex-1 px-2 py-1.5 text-xs font-medium bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
+                                            >
+                                                ✕ Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setAddingCurrency({ field, tableId: table.id })}
+                                        className="w-full px-3 py-2 text-xs font-medium bg-slate-700 hover:bg-slate-600 text-white rounded-lg border border-slate-600 hover:border-slate-500 transition-colors mt-3"
+                                    >
+                                        + Add Currency
+                                    </button>
                                 )}
                             </div>
                         );
@@ -361,14 +475,65 @@ export default function AdminPanel() {
                     </div>
                 )}
 
-                {/* Save Button */}
-                <button
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 text-white font-semibold rounded-lg transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {loading ? '⏳ Saving...' : '✓ Save Configuration'}
-                </button>
+                {/* Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className="py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-all duration-200"
+                    >
+                        📥 Import Custom Data
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-700 text-white font-semibold rounded-lg transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {loading ? '⏳ Saving...' : '✓ Save Configuration'}
+                    </button>
+                </div>
+
+                {/* Import Modal */}
+                {showImportModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-slate-800 border border-slate-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+                            <h3 className="text-xl font-bold text-white mb-4">📥 Import Pricing Data</h3>
+
+                            <div className="mb-4">
+                                <p className="text-sm text-slate-400 mb-3">Paste tab-separated data with currencies as headers:</p>
+                                <div className="bg-slate-900/50 border border-slate-700 rounded p-3 text-xs font-mono text-slate-300 mb-3 max-h-32 overflow-auto">
+                                    <div>EUR&nbsp;&nbsp;&nbsp;&nbsp;USD&nbsp;&nbsp;&nbsp;&nbsp;GBP&nbsp;&nbsp;&nbsp;&nbsp;...</div>
+                                    <div>0.10&nbsp;&nbsp;&nbsp;&nbsp;0.10&nbsp;&nbsp;&nbsp;&nbsp;0.10&nbsp;&nbsp;&nbsp;&nbsp;...</div>
+                                    <div>0.20&nbsp;&nbsp;&nbsp;&nbsp;0.20&nbsp;&nbsp;&nbsp;&nbsp;0.20&nbsp;&nbsp;&nbsp;&nbsp;...</div>
+                                </div>
+                            </div>
+
+                            <textarea
+                                value={importData}
+                                onChange={(e) => setImportData(e.target.value)}
+                                placeholder="Paste tab-separated data here..."
+                                className="w-full h-48 px-4 py-3 bg-slate-700 border border-slate-600 rounded text-white text-sm font-mono focus:border-cyan-500 focus:outline-none mb-4"
+                            />
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleBulkImport}
+                                    className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-all"
+                                >
+                                    ✓ Import
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowImportModal(false);
+                                        setImportData('');
+                                    }}
+                                    className="flex-1 py-2 px-4 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-all"
+                                >
+                                    ✕ Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
