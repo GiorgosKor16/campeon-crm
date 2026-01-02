@@ -310,7 +310,7 @@ export default function AdminPanel() {
                                                 placeholder="Currency (e.g., USD)"
                                                 value={newCurrencyName}
                                                 onChange={(e) => setNewCurrencyName(e.target.value.toUpperCase())}
-                                                maxLength="3"
+                                                maxLength={3}
                                                 className="flex-1 px-2 py-1.5 text-xs bg-slate-700 text-white rounded border border-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
                                             />
                                             <input
