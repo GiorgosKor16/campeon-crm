@@ -118,4 +118,32 @@ body {
     .message-info {
         @apply p-4 rounded-lg border bg-blue-950/50 border-blue-700 text-blue-300 font-medium flex items-center gap-2;
     }
+
+    textarea {
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+    }
+
+    textarea a {
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+
+    /* Remove line number selection highlight */
+    div[style*="flexDirection: column"] span::selection {
+        background-color: transparent !important;
+        color: inherit !important;
+    }
+
+    div[style*="flexDirection: column"] span::-moz-selection {
+        background-color: transparent !important;
+        color: inherit !important;
+    }
+
+    /* Force remove ALL blue backgrounds from line numbers */
+    div[style*="flexDirection: column"] span {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+    }
 }

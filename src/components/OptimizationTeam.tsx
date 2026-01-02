@@ -13,6 +13,19 @@ interface BonusTemplate {
     created_at: string;
 }
 
+interface ValidationError {
+    field: string;
+    message: string;
+}
+
+const REQUIRED_BONUS_FIELDS = [
+    'id',
+    'bonus_type',
+    'name',
+    'description',
+    'terms_conditions'
+];
+
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -31,6 +44,8 @@ export default function OptimizationTeam() {
     const [jsonOutput, setJsonOutput] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+    const [scrollTop, setScrollTop] = useState(0);
 
     useEffect(() => {
         fetchBonusesForMonth();
@@ -143,6 +158,33 @@ export default function OptimizationTeam() {
     const copyToClipboard = () => {
         navigator.clipboard.writeText(jsonOutput);
         setMessage('✅ Copied to clipboard!');
+    };
+
+    const validateJSON = (jsonString: string): ValidationError[] => {
+        const errors: ValidationError[] = [];
+
+        try {
+            JSON.parse(jsonString);
+            return errors;
+        } catch (error) {
+            let errorMsg = error instanceof Error ? error.message : 'Unknown error';
+
+            // Extract line number from error message if available
+            const positionMatch = errorMsg.match(/position (\d+)/);
+            if (positionMatch) {
+                const position = parseInt(positionMatch[1]);
+                const lines = jsonString.substring(0, position).split('\n');
+                const lineNumber = lines.length;
+                const column = lines[lines.length - 1].length + 1;
+                errorMsg = `Line ${lineNumber}, Column ${column}: ${errorMsg}`;
+            }
+
+            errors.push({
+                field: 'JSON',
+                message: errorMsg
+            });
+            return errors;
+        }
     };
 
     return (
@@ -269,22 +311,112 @@ export default function OptimizationTeam() {
             {jsonOutput && (
                 <div className="space-y-3">
                     <div className="bg-slate-700 border border-slate-600 rounded p-4">
-                        <h3 className="font-semibold text-slate-300 mb-3">Generated JSON Output</h3>
-                        <pre className="bg-slate-800 p-4 rounded text-sm text-slate-300 overflow-auto max-h-96 border border-slate-700">
-                            {jsonOutput}
-                        </pre>
+                        <h3 className="font-semibold text-slate-300 mb-3">Generated JSON Output (Editable)</h3>
+                        <div className="border border-slate-600 rounded bg-slate-900 flex overflow-hidden" style={{ height: 'calc(100vh - 400px)', maxHeight: '90vh' }}>
+                            {/* Line Numbers Column */}
+                            <div
+                                style={{
+                                    backgroundColor: '#020617',
+                                    lineHeight: '1.6',
+                                    width: '50px',
+                                    paddingTop: '16px',
+                                    paddingRight: '12px',
+                                    paddingBottom: '16px',
+                                    paddingLeft: '8px',
+                                    transform: `translateY(-${scrollTop}px)`,
+                                    transition: 'none',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    minHeight: '100%',
+                                    borderRight: '1px solid #334155',
+                                    userSelect: 'none'
+                                }}
+                            >
+                                {Array.from({ length: jsonOutput.split('\n').length }, (_, i) => (
+                                    <span
+                                        key={i}
+                                        style={{
+                                            height: '25.6px',
+                                            flexShrink: 0,
+                                            textAlign: 'right',
+                                            fontFamily: 'monospace',
+                                            fontSize: '1rem',
+                                            color: '#9ca3af',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'flex-end',
+                                            backgroundColor: 'transparent',
+                                            background: 'transparent'
+                                        } as React.CSSProperties}
+                                    >
+                                        {i + 1}
+                                    </span>
+                                ))}
+                            </div>
+                            {/* JSON Textarea */}
+                            <textarea
+                                value={jsonOutput}
+                                onChange={(e) => {
+                                    setJsonOutput(e.target.value);
+                                    const errors = validateJSON(e.target.value);
+                                    setValidationErrors(errors);
+                                }}
+                                onScroll={(e) => setScrollTop((e.target as HTMLTextAreaElement).scrollTop)}
+                                className="flex-1 bg-slate-900 p-4 text-base text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
+                                style={{
+                                    lineHeight: '1.6',
+                                    tabSize: 2,
+                                    WebkitTextFillColor: '#e2e8f0',
+                                    border: 'none',
+                                    overflowY: 'scroll',
+                                    overflowX: 'auto'
+                                }}
+                            />
+                        </div>
                     </div>
+
+                    {/* Validation Errors */}
+                    {validationErrors.length > 0 && (
+                        <div className="bg-red-900/30 border border-red-600 rounded p-4">
+                            <h4 className="font-semibold text-red-400 mb-3">⚠️ Validation Errors ({validationErrors.length})</h4>
+                            <div className="space-y-2">
+                                {validationErrors.map((error, idx) => (
+                                    <div key={idx} className="text-red-300 text-sm">
+                                        <span className="font-semibold">{error.field}:</span> {error.message}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {validationErrors.length === 0 && jsonOutput && (
+                        <div className="bg-green-900/30 border border-green-600 rounded p-4">
+                            <p className="text-green-400 font-semibold">✅ JSON is valid and ready!</p>
+                        </div>
+                    )}
 
                     <div className="flex gap-3">
                         <button
                             onClick={copyToClipboard}
-                            className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-semibold transition-colors"
+                            disabled={validationErrors.length > 0}
+                            className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 disabled:bg-slate-700 disabled:opacity-50 text-white rounded font-semibold transition-colors"
                         >
                             📋 Copy to Clipboard
                         </button>
                         <button
+                            onClick={() => {
+                                const blob = new Blob([jsonOutput], { type: 'application/json' });
+                                saveAs(blob, `${selectedBonusId}.json`);
+                            }}
+                            disabled={validationErrors.length > 0}
+                            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded font-semibold transition-colors"
+                        >
+                            ⬇️ Download JSON
+                        </button>
+                        <button
                             onClick={downloadAsZip}
-                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
+                            disabled={validationErrors.length > 0}
+                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-800 disabled:opacity-50 text-white rounded font-semibold transition-colors"
                         >
                             📦 Download as ZIP
                         </button>
