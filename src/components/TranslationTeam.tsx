@@ -17,6 +17,12 @@ interface Translation {
     offer_description: string;
 }
 
+interface LanguageItem {
+    code: string;
+    name: string;
+    isCustom?: boolean;
+}
+
 const LANGUAGES = [
     { code: '*', name: 'Default (*)' },
     { code: 'en', name: 'English' },
@@ -47,12 +53,33 @@ export default function TranslationTeam() {
             offer_description: '',
         }))
     );
+    const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
+        LANGUAGES.map(lang => lang.code)
+    );
+    const [customLanguages, setCustomLanguages] = useState<LanguageItem[]>([]);
+    const [newLanguageCode, setNewLanguageCode] = useState('');
+    const [languageSearchQuery, setLanguageSearchQuery] = useState('');
+    const [translationSearchQuery, setTranslationSearchQuery] = useState('');
+    const [bonusSearchQuery, setBonusSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
 
     useEffect(() => {
         fetchBonusesForMonth();
+        fetchCustomLanguages();
     }, [selectedYear, selectedMonth]);
+
+    const fetchCustomLanguages = async () => {
+        try {
+            const response = await axios.get('http://localhost:8000/api/custom-languages');
+            setCustomLanguages(response.data);
+            // Add custom languages to selected languages
+            const customLangCodes = response.data.map((lang: any) => lang.code);
+            setSelectedLanguages([...LANGUAGES.map(l => l.code), ...customLangCodes]);
+        } catch (error) {
+            console.error('Error fetching custom languages:', error);
+        }
+    };
 
     const fetchBonusesForMonth = async () => {
         try {
@@ -119,6 +146,82 @@ export default function TranslationTeam() {
         setTranslations(updatedTranslations);
     };
 
+    const handleAddLanguage = (languageCode: string) => {
+        if (!selectedLanguages.includes(languageCode)) {
+            setSelectedLanguages([...selectedLanguages, languageCode]);
+        }
+    };
+
+    const handleRemoveLanguage = (languageCode: string) => {
+        if (languageCode === '*') {
+            setMessage('❌ Cannot remove default language (*)');
+            return;
+        }
+        setSelectedLanguages(selectedLanguages.filter(lang => lang !== languageCode));
+        // Also clear translations for this language
+        setTranslations(translations.map(trans =>
+            trans.language === languageCode
+                ? { ...trans, offer_name: '', offer_description: '' }
+                : trans
+        ));
+    };
+
+    const handleAddCustomLanguage = () => {
+        // Validation
+        if (!newLanguageCode.trim()) {
+            setMessage('❌ Language code cannot be empty');
+            return;
+        }
+        if (selectedLanguages.includes(newLanguageCode.toLowerCase())) {
+            setMessage('❌ This language code already exists');
+            return;
+        }
+        if (!/^[a-z]{2}(-[a-z]{2})?$/i.test(newLanguageCode)) {
+            setMessage('❌ Language code must be in format: xx or xx-YY (e.g., en, pt-BR)');
+            return;
+        }
+
+        // Add custom language
+        const langCode = newLanguageCode.toLowerCase();
+        const newCustomLang: LanguageItem = { code: langCode, name: langCode, isCustom: true };
+
+        // Save to backend
+        axios.post('http://localhost:8000/api/custom-languages', newCustomLang)
+            .then(() => {
+                setCustomLanguages([...customLanguages, newCustomLang]);
+                setSelectedLanguages([...selectedLanguages, langCode]);
+
+                // Add empty translation fields for this language
+                setTranslations([
+                    ...translations,
+                    {
+                        language: langCode,
+                        offer_name: '',
+                        offer_description: '',
+                    }
+                ]);
+
+                setNewLanguageCode('');
+                setMessage(`✅ Added custom language: ${langCode}`);
+            })
+            .catch((error) => {
+                setMessage(`❌ Error adding language: ${error.response?.data?.detail || error.message}`);
+            });
+    };
+
+    const handleRemoveCustomLanguage = (languageCode: string) => {
+        // Delete from backend
+        axios.delete(`http://localhost:8000/api/custom-languages/${languageCode}`)
+            .then(() => {
+                setCustomLanguages(customLanguages.filter(lang => lang.code !== languageCode));
+                handleRemoveLanguage(languageCode);
+                setMessage(`✅ Removed language: ${languageCode}`);
+            })
+            .catch((error) => {
+                setMessage(`❌ Error removing language: ${error.response?.data?.detail || error.message}`);
+            });
+    };
+
     const handleSelectBonus = async (bonusId: string) => {
         setSelectedBonusId(bonusId);
         setMessage('');
@@ -132,15 +235,16 @@ export default function TranslationTeam() {
 
             console.log('Received translations:', response.data);
 
-            // Map existing translations to the form
+            // Map existing translations to the form - include both predefined and custom languages
             const existingTranslations = response.data || [];
-            const updatedTranslations = LANGUAGES.map(lang => {
+            const allLanguageCodes = [...LANGUAGES.map(l => l.code), ...customLanguages.map(l => l.code)];
+            const updatedTranslations = allLanguageCodes.map(langCode => {
                 const existing = existingTranslations.find(
-                    (t: any) => t.language === lang.code
+                    (t: any) => t.language === langCode
                 );
-                console.log(`Looking for ${lang.code}:`, existing);
+                console.log(`Looking for ${langCode}:`, existing);
                 return {
-                    language: lang.code,
+                    language: langCode,
                     offer_name: existing?.name || '',
                     offer_description: existing?.description || '',
                 };
@@ -151,9 +255,10 @@ export default function TranslationTeam() {
         } catch (error: any) {
             // No translations found yet, keep empty form
             console.error('Error loading translations:', error.response?.status, error.message);
+            const allLanguageCodes = [...LANGUAGES.map(l => l.code), ...customLanguages.map(l => l.code)];
             setTranslations(
-                LANGUAGES.map(lang => ({
-                    language: lang.code,
+                allLanguageCodes.map(langCode => ({
+                    language: langCode,
                     offer_name: '',
                     offer_description: '',
                 }))
@@ -232,7 +337,7 @@ export default function TranslationTeam() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 px-1 py-4 w-full">
             <div className="bg-slate-700/50 border border-slate-600 rounded p-4">
                 <h2 className="text-xl font-bold text-green-400 mb-4">🌐 Add Translations</h2>
                 <p className="text-slate-300 text-sm">Search or browse bonuses by month, then provide translations in multiple languages.</p>
@@ -292,13 +397,24 @@ export default function TranslationTeam() {
                     📋 Bonuses Created in {MONTHS[selectedMonth]} {selectedYear}
                 </h3>
 
+                {/* Search Bonuses */}
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        value={bonusSearchQuery}
+                        onChange={(e) => setBonusSearchQuery(e.target.value)}
+                        placeholder="🔍 Search bonus by ID..."
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+
                 {loading ? (
                     <div className="text-center text-slate-300">Loading bonuses...</div>
                 ) : bonuses.length === 0 ? (
                     <div className="text-center text-slate-400">No bonuses found for this month</div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
-                        {bonuses.map(bonus => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 max-h-80 overflow-y-auto">
+                        {bonuses.filter(bonus => bonus.id.toLowerCase().includes(bonusSearchQuery.toLowerCase())).map(bonus => (
                             <button
                                 key={bonus.id}
                                 onClick={() => handleSelectBonus(bonus.id)}
@@ -324,74 +440,198 @@ export default function TranslationTeam() {
                         <p className="text-green-400 font-semibold">✓ Selected Bonus: <span className="text-green-300">{selectedBonusId}</span></p>
                     </div>
 
-                    {/* Translations Grid - Horizontal Columns */}
-                    <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem', backgroundColor: '#1e293b', borderRadius: '0.5rem', border: '1px solid #475569' }}>
-                        {translations.map((trans, index) => (
-                            <div
-                                key={trans.language}
-                                style={{
-                                    minWidth: '250px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '1rem',
-                                    padding: '1rem',
-                                    backgroundColor: '#334155',
-                                    border: '1px solid #475569',
-                                    borderRadius: '0.5rem'
-                                }}
-                            >
-                                {/* Language Header */}
-                                <div style={{ textAlign: 'center', paddingBottom: '0.75rem', borderBottom: '2px solid #06b6d4' }}>
-                                    <h3 style={{ fontWeight: 'bold', fontSize: '1.125rem', color: '#06b6d4' }}>
-                                        {LANGUAGES.find(l => l.code === trans.language)?.name}
-                                    </h3>
-                                </div>
+                    {/* Language Management */}
+                    <div className="bg-slate-700/30 border border-slate-600 rounded p-4">
+                        <h3 className="text-lg font-semibold text-cyan-400 mb-4">🗣️ Manage Languages</h3>
 
-                                {/* Name Input */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</label>
-                                    <textarea
-                                        value={trans.offer_name}
-                                        onChange={(e) => handleTranslationChange(index, 'offer_name', e.target.value)}
-                                        style={{
-                                            padding: '0.5rem 0.75rem',
-                                            backgroundColor: '#475569',
-                                            border: '1px solid #64748b',
-                                            borderRadius: '0.375rem',
-                                            color: 'white',
-                                            fontSize: '0.875rem',
-                                            minHeight: '100px',
-                                            fontFamily: 'inherit',
-                                            resize: 'none',
-                                            flex: 1
-                                        }}
-                                        placeholder="Enter name..."
-                                    />
-                                </div>
+                        {/* Search Languages */}
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={languageSearchQuery}
+                                onChange={(e) => setLanguageSearchQuery(e.target.value)}
+                                placeholder="🔍 Search languages (code or name)..."
+                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-cyan-500"
+                            />
+                        </div>
 
-                                {/* Description Textarea */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</label>
-                                    <textarea
-                                        value={trans.offer_description}
-                                        onChange={(e) => handleTranslationChange(index, 'offer_description', e.target.value)}
-                                        style={{
-                                            padding: '0.5rem 0.75rem',
-                                            backgroundColor: '#475569',
-                                            border: '1px solid #64748b',
-                                            borderRadius: '0.375rem',
-                                            color: 'white',
-                                            fontSize: '0.875rem',
-                                            minHeight: '100px',
-                                            fontFamily: 'inherit',
-                                            resize: 'none',
-                                            flex: 1
-                                        }}
-                                        placeholder="Enter description..."
-                                    />
+                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2">
+                            {/* Predefined Languages */}
+                            {LANGUAGES.filter(lang =>
+                                lang.code.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
+                                lang.name.toLowerCase().includes(languageSearchQuery.toLowerCase())
+                            ).map(lang => (
+                                <div
+                                    key={lang.code}
+                                    className={`p-2 rounded border flex items-center justify-between transition-all ${selectedLanguages.includes(lang.code)
+                                        ? 'bg-blue-700/40 border-blue-500 text-blue-300'
+                                        : 'bg-slate-700/50 border-slate-600 text-slate-400'
+                                        }`}
+                                >
+                                    <span className="text-sm font-medium">{lang.code}</span>
+                                    {selectedLanguages.includes(lang.code) ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveLanguage(lang.code)}
+                                            disabled={lang.code === '*'}
+                                            className="ml-2 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded transition-colors"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAddLanguage(lang.code)}
+                                            className="ml-2 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                        >
+                                            +
+                                        </button>
+                                    )}
                                 </div>
+                            ))}
+
+                            {/* Custom Languages - Inline */}
+                            {customLanguages.filter(lang =>
+                                lang.code.toLowerCase().includes(languageSearchQuery.toLowerCase()) ||
+                                lang.name.toLowerCase().includes(languageSearchQuery.toLowerCase())
+                            ).map(lang => (
+                                <div
+                                    key={lang.code}
+                                    className={`p-2 rounded border flex items-center justify-between transition-all ${selectedLanguages.includes(lang.code)
+                                        ? 'bg-purple-700/40 border-purple-500 text-purple-300'
+                                        : 'bg-slate-700/50 border-slate-600 text-slate-400'
+                                        }`}
+                                >
+                                    <span className="text-sm font-medium">{lang.code}</span>
+                                    {selectedLanguages.includes(lang.code) ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveCustomLanguage(lang.code)}
+                                            className="ml-2 px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                                        >
+                                            ✕
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAddLanguage(lang.code)}
+                                            className="ml-2 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                                        >
+                                            +
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add Custom Language Form */}
+                        <div className="mt-4 pt-4 border-t border-slate-600">
+                            <h4 className="text-sm font-semibold text-amber-400 mb-3">➕ Add Custom Language</h4>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newLanguageCode}
+                                    onChange={(e) => setNewLanguageCode(e.target.value)}
+                                    placeholder="Language code (e.g., ja, zh, pt-BR)"
+                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-amber-500"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddCustomLanguage}
+                                    className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded text-sm transition-colors"
+                                >
+                                    Add
+                                </button>
                             </div>
-                        ))}
+                        </div>
+                    </div>
+
+                    {/* Translations Grid - Horizontal Columns */}
+                    <div className="bg-slate-700/30 border border-slate-600 rounded p-4">
+                        <h3 className="text-lg font-semibold text-cyan-400 mb-4">📝 Translations</h3>
+
+                        {/* Search Translations */}
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={translationSearchQuery}
+                                onChange={(e) => setTranslationSearchQuery(e.target.value)}
+                                placeholder="🔍 Search languages to translate..."
+                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-cyan-500"
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem', backgroundColor: '#1e293b', borderRadius: '0.5rem', border: '1px solid #475569' }}>
+                            {translations
+                                .filter(trans => selectedLanguages.includes(trans.language) &&
+                                    trans.language.toLowerCase().includes(translationSearchQuery.toLowerCase()))
+                                .map((trans, index) => (
+                                    <div
+                                        key={trans.language}
+                                        style={{
+                                            minWidth: '250px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '1rem',
+                                            padding: '1rem',
+                                            backgroundColor: '#334155',
+                                            border: '1px solid #475569',
+                                            borderRadius: '0.5rem'
+                                        }}
+                                    >
+                                        {/* Language Header */}
+                                        <div style={{ textAlign: 'center', paddingBottom: '0.75rem', borderBottom: '2px solid #06b6d4' }}>
+                                            <h3 style={{ fontWeight: 'bold', fontSize: '1.125rem', color: '#06b6d4' }}>
+                                                {trans.language}
+                                            </h3>
+                                        </div>
+
+                                        {/* Name Input */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name</label>
+                                            <textarea
+                                                value={trans.offer_name}
+                                                onChange={(e) => handleTranslationChange(index, 'offer_name', e.target.value)}
+                                                style={{
+                                                    padding: '0.5rem 0.75rem',
+                                                    backgroundColor: '#475569',
+                                                    border: '1px solid #64748b',
+                                                    borderRadius: '0.375rem',
+                                                    color: 'white',
+                                                    fontSize: '0.875rem',
+                                                    minHeight: '100px',
+                                                    fontFamily: 'inherit',
+                                                    resize: 'none',
+                                                    flex: 1
+                                                }}
+                                                placeholder="Enter name..."
+                                            />
+                                        </div>
+
+                                        {/* Description Textarea */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</label>
+                                            <textarea
+                                                value={trans.offer_description}
+                                                onChange={(e) => handleTranslationChange(index, 'offer_description', e.target.value)}
+                                                style={{
+                                                    padding: '0.5rem 0.75rem',
+                                                    backgroundColor: '#475569',
+                                                    border: '1px solid #64748b',
+                                                    borderRadius: '0.375rem',
+                                                    color: 'white',
+                                                    fontSize: '0.875rem',
+                                                    minHeight: '100px',
+                                                    fontFamily: 'inherit',
+                                                    resize: 'none',
+                                                    flex: 1
+                                                }}
+                                                placeholder="Enter description..."
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
                     </div>
 
                     {/* Submit Button */}

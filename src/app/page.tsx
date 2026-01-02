@@ -23,7 +23,7 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
-            <div className="max-w-7xl mx-auto px-4 py-10">
+            <div className="w-full px-2 py-10">
                 {/* Header */}
                 <header className="mb-10 pb-6 border-b border-slate-700/50">
                     <div className="flex items-center gap-3 mb-2">

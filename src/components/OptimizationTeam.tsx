@@ -25,6 +25,7 @@ export default function OptimizationTeam() {
 
     const [searchId, setSearchId] = useState('');
     const [selectedBonusId, setSelectedBonusId] = useState('');
+    const [bonusSearchQuery, setBonusSearchQuery] = useState('');
     const [bonusData, setBonusData] = useState<BonusTemplate | null>(null);
     const [bonuses, setBonuses] = useState<BonusTemplate[]>([]);
     const [jsonOutput, setJsonOutput] = useState('');
@@ -206,13 +207,24 @@ export default function OptimizationTeam() {
                     📋 Bonuses Created in {MONTHS[selectedMonth]} {selectedYear}
                 </h3>
 
+                {/* Search Bonuses */}
+                <div className="mb-4">
+                    <input
+                        type="text"
+                        value={bonusSearchQuery}
+                        onChange={(e) => setBonusSearchQuery(e.target.value)}
+                        placeholder="🔍 Search bonus by ID..."
+                        className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-yellow-500"
+                    />
+                </div>
+
                 {loading ? (
                     <div className="text-center text-slate-300">Loading bonuses...</div>
                 ) : bonuses.length === 0 ? (
                     <div className="text-center text-slate-400">No bonuses found for this month</div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
-                        {bonuses.map(bonus => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 max-h-80 overflow-y-auto">
+                        {bonuses.filter(bonus => bonus.id.toLowerCase().includes(bonusSearchQuery.toLowerCase())).map(bonus => (
                             <button
                                 key={bonus.id}
                                 onClick={() => handleSelectBonus(bonus)}

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 # Import routers when database is ready
 from api.bonus_templates import router as bonus_templates_router
 from api.stable_config import router as stable_config_router
+from api.custom_languages import router as custom_languages_router
 from database.database import init_db
 
 
@@ -42,6 +43,8 @@ app.include_router(bonus_templates_router, prefix="/api",
                    tags=["bonus-templates"])
 app.include_router(stable_config_router, prefix="/api",
                    tags=["stable-config"])
+app.include_router(custom_languages_router, prefix="/api",
+                   tags=["custom-languages"])
 
 
 @app.get("/health")

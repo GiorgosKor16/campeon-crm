@@ -153,3 +153,21 @@ class CurrencyReference(Base):
 
     def __repr__(self):
         return f"<CurrencyReference {self.currency}: 1 EUR = {self.eur_rate}>"
+
+
+class CustomLanguage(Base):
+    """
+    Stores user-defined custom languages for translations.
+    """
+    __tablename__ = "custom_languages"
+
+    # e.g., "ja", "zh", "pt-BR"
+    code = Column(String(10), primary_key=True, index=True)
+    name = Column(String(100), nullable=False)  # e.g., "Japanese", "Chinese"
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<CustomLanguage {self.code}: {self.name}>"
