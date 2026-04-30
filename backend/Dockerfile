@@ -9,6 +9,10 @@ RUN pip install -r requirements.txt --no-cache-dir
 
 COPY . .
 
+RUN useradd -ms /bin/bash appUser
+RUN chown -R appUser:appUser /backend
+USER appUser
+
 # 6. Expose the port your app runs on
 EXPOSE 8000
 
