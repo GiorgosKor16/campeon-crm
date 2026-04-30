@@ -6,4 +6,5 @@ Dockerfile
 .dockerignore
 .next
 .venv
-/backend
+*.md
+backend
