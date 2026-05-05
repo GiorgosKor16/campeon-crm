@@ -1,0 +1,16 @@
+Frontend
+docker build \
+  -t campeon-crm-frontend \
+  --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000 \
+  .
+
+docker run \
+  --name campeon-crm-frontend \
+  -p 3000:3000 \
+  campeon-crm-frontend
+
+
+Backend
+docker build -t campeon-crm-backend ./backend
+
+docker run -e JWT_SECRET_KEY="$(openssl rand -hex 32)" campeon-crm-backend
